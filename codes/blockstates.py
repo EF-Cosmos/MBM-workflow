@@ -1,9 +1,12 @@
 import json
 import os
- 
-import amulet
+
+from . import dependency_manager
 from .model import extract_vertices_from_elements
 from .functions.get_data import get_file_path, get_all_data
+
+# 使用依赖管理器导入
+amulet = dependency_manager.amulet
 
 def blockstates(coord,chunks, level, vertices, faces, direction, texture_list, uv_list, uv_rotation_list, vertices_dict):
     try:

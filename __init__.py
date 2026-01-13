@@ -7,7 +7,7 @@ bl_info={
     "name":"BaiGave's Tool",
     "author":"BaiGave",
     "version":(1, 0),
-    "blender":(4, 0, 0),
+    "blender":(5, 0, 0),
     "location":"View3d > Tool",
     "warning":"如果有任何问题请联系白给~我的bilbil账号:BaiGave",
     "category":"BaiGave's Tool"

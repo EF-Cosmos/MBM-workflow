@@ -1,10 +1,19 @@
 import bpy
 import importlib
 
-if "install" in locals():
-	importlib.reload(install)
+# 依赖管理：必须首先加载
+if "dependency_manager" in locals():
+	importlib.reload(dependency_manager)
 else:
-	from . import install
+	from .codes import dependency_manager
+
+# install.py 在 Blender 5.0+ 中不再需要
+# Blender 会自动处理 blender_manifest.toml 中的 wheels
+# if "install" in locals():
+# 	importlib.reload(install)
+# else:
+# 	from . import install
+
 if "property" in locals():
 	importlib.reload(property)
 else:
@@ -80,6 +89,18 @@ module_list = (
 
 
 def register():
+	# 首先检查依赖
+	missing = dependency_manager.DependencyManager.check_dependencies()
+	if missing:
+		dependency_manager.DependencyManager.show_dependency_error(missing)
+		return  # 不继续注册，但 Blender 不会崩溃
+
+	# 检查可选依赖并显示警告
+	optional_missing = dependency_manager.DependencyManager.check_optional_dependencies()
+	if optional_missing:
+		dependency_manager.DependencyManager.show_optional_warning(optional_missing)
+
+	# 所有依赖可用，继续注册模块
 	for mod in module_list:
 		mod.register()
 

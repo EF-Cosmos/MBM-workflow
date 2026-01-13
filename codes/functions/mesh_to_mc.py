@@ -4,9 +4,32 @@ import bmesh
 import numpy as np
 import re
 from .tip import ShowMessageBox
-from ..register import register_blocks,create_or_clear_collection
+from ..register import register_blocks, create_or_clear_collection
 from collections import defaultdict
-from amulet_nbt import TAG_Compound, TAG_Int, ByteArrayTag ,IntArrayTag,ShortTag
+from amulet_nbt import TAG_Compound, TAG_Int, ByteArrayTag, IntArrayTag, ShortTag
+
+
+def set_modifier_socket_value(modifier, socket_identifier, fallback_name, value, is_input=True):
+    """
+    为几何节点修饰符的 socket 设置值，兼容 Blender 5.0+
+
+    Args:
+        modifier: 几何节点修饰符
+        socket_identifier: socket 的标识符 (如 'Input_58', 'Output_2_attribute_name')
+        fallback_name: 回退匹配时的 socket 名称关键词 (如 'UV', 'attribute')
+        value: 要设置的值
+        is_input: True 表示输入 socket，False 表示输出 socket
+    """
+    try:
+        modifier[socket_identifier] = value
+    except (KeyError, TypeError):
+        if not modifier.node_group:
+            return
+        sockets = modifier.node_group.inputs if is_input else modifier.node_group.outputs
+        for socket in sockets:
+            if socket.identifier == socket_identifier or fallback_name in socket.name:
+                socket.default_value = value
+                break
 
 # 全局缓存来存储计算结果
 distance_cache = {}
@@ -365,38 +388,32 @@ class ObjToBlocks(bpy.types.Operator):
         nodes_modifier.name="模型转换"
         context_node_tree = obj.name
         node_groups = bpy.data.node_groups
-        # 尝试导入几何节点
-        try:
-            nodes_modifier.node_group = node_groups[context_node_tree]
-        except:
-            # 如果 context_node_tree 不存在，则检查 nodetree_target 是否存在，不存在则添加，存在则复制
-            if nodetree_target not in node_groups:
-                file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"blend_files","BlockBlender++.blend")
-                inner_path = 'NodeTree'
-                object_name = nodetree_target
-                bpy.ops.wm.append(
-                    filepath=os.path.join(file_path, inner_path, object_name),
-                    directory=os.path.join(file_path, inner_path),
-                    filename=object_name
-                )
-                # 复制 nodetree_target 并重命名为 context_node_tree
-                node_tree = node_groups[nodetree_target].copy()
-                node_tree.name = context_node_tree
-            else:
-                # 复制 nodetree_target 并重命名为 context_node_tree
-                node_tree = node_groups[nodetree_target].copy()
-                node_tree.name = context_node_tree
-        # 设置几何节点
+
+        # 确保节点树存在，如果不存在则导入
+        if nodetree_target not in node_groups:
+            file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"blend_files","BlockBlender++.blend")
+            inner_path = 'NodeTree'
+            object_name = nodetree_target
+            bpy.ops.wm.append(
+                filepath=os.path.join(file_path, inner_path, object_name),
+                directory=os.path.join(file_path, inner_path),
+                filename=object_name
+            )
+
+        # 如果上下文节点树不存在，则复制模板节点树
+        if context_node_tree not in node_groups:
+            node_tree = node_groups[nodetree_target].copy()
+            node_tree.name = context_node_tree
+
         nodes_modifier.node_group = node_groups[context_node_tree]
         nodes_modifier.show_viewport = True
 
-        # 遍历对象的所有修改器
+        # 设置 UV 属性到修饰符
         for modifier in obj.modifiers:
-            # 检查修改器名称是否为“模型转换”
             if modifier.name == '模型转换':
-                # 设置名为“UV”的字符串值为“UVMap”
-                if 'Input_58' in modifier:
-                    modifier['Input_58'] = obj.data.uv_layers.active.name
+                set_modifier_socket_value(
+                    modifier, 'Input_58', 'UV', obj.data.uv_layers.active.name, is_input=True
+                )
 
         for group in node_groups:
             if group.name == context_node_tree:
@@ -482,39 +499,32 @@ class BlockBlender(bpy.types.Operator):
             nodes_modifier = obj.modifiers[0]
             nodes_modifier.name="模型转换"
             context_node_tree = obj.name
-            # 尝试导入几何节点
-            try:
-                nodes_modifier.node_group = node_groups[context_node_tree]
-            except:
-                # 如果 context_node_tree 不存在，则检查 nodetree_target 是否存在，不存在则添加，存在则复制
-                if nodetree_target not in node_groups:
-                    file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"blend_files","BlockBlender++.blend")
-                    inner_path = 'NodeTree'
-                    object_name = nodetree_target
-                    bpy.ops.wm.append(
-                        filepath=os.path.join(file_path, inner_path, object_name),
-                        directory=os.path.join(file_path, inner_path),
-                        filename=object_name
-                    )
-                    # 复制 nodetree_target 并重命名为 context_node_tree
-                    node_tree = node_groups[nodetree_target].copy()
-                    node_tree.name = context_node_tree
-                else:
-                    # 复制 nodetree_target 并重命名为 context_node_tree
-                    node_tree = node_groups[nodetree_target].copy()
-                    node_tree.name = context_node_tree
-            # 设置几何节点
+
+            # 确保节点树存在，如果不存在则导入
+            if nodetree_target not in node_groups:
+                file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"blend_files","BlockBlender++.blend")
+                inner_path = 'NodeTree'
+                object_name = nodetree_target
+                bpy.ops.wm.append(
+                    filepath=os.path.join(file_path, inner_path, object_name),
+                    directory=os.path.join(file_path, inner_path),
+                    filename=object_name
+                )
+
+            # 如果上下文节点树不存在，则复制模板节点树
+            if context_node_tree not in node_groups:
+                node_tree = node_groups[nodetree_target].copy()
+                node_tree.name = context_node_tree
+
             nodes_modifier.node_group = node_groups[context_node_tree]
             nodes_modifier.show_viewport = True
 
-
-            # 遍历对象的所有修改器
+            # 设置 UV 属性到修饰符
             for modifier in obj.modifiers:
-                # 检查修改器名称是否为“模型转换”
                 if modifier.name == '模型转换':
-                    # 设置名为“UV”的字符串值为“UVMap”
-                    if 'Input_58' in modifier:
-                        modifier['Input_58'] = obj.data.uv_layers.active.name
+                    set_modifier_socket_value(
+                        modifier, 'Input_58', 'UV', obj.data.uv_layers.active.name, is_input=True
+                    )
             for group in node_groups:
                 if group.name == context_node_tree:
                     node_collection = group.nodes.get("方块集合")

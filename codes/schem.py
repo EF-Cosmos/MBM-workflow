@@ -3,12 +3,15 @@ import math
 import bmesh
 from .model import create_mesh,add_mesh_to_collection,get_or_create_material,set_uv
 import re
-import amulet
+from . import dependency_manager
 from .classification_files.block_type import liquid,exclude
 import numpy as np
 import os
 from .register import create_or_clear_collection,register_blocks,registered_blocks
 import pickle
+
+# 使用依赖管理器导入
+amulet = dependency_manager.amulet
 
 #用于删除[]的部分 
 def remove_brackets(input_string):

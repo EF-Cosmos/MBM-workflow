@@ -1,10 +1,24 @@
 import os
 import re
 import bpy
-import amulet
-from amulet.api.block import Block
-from amulet_nbt import TAG_Compound, TAG_Int, ByteArrayTag ,IntArrayTag,ShortTag,TAG_String
+from . import dependency_manager
 from .functions.tip import ShowMessageBox
+
+# 使用依赖管理器导入
+amulet = dependency_manager.amulet
+amulet_nbt = dependency_manager.amulet_nbt
+
+# 条件导入：只有依赖可用时才导入子模块
+if amulet is not None:
+    from amulet.api.block import Block
+else:
+    Block = None
+
+if amulet_nbt is not None:
+    from amulet_nbt import TAG_Compound, TAG_Int, ByteArrayTag, IntArrayTag, ShortTag, TAG_String
+else:
+    # 提供占位符，避免导入失败
+    TAG_Compound = TAG_Int = ByteArrayTag = IntArrayTag = ShortTag = TAG_String = None
 
 
 class OpenSaves_FileManagerOperator(bpy.types.Operator):

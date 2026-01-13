@@ -10,10 +10,13 @@ from .classification_files.block_type import exclude
 from .schem import schem_chunk,schem_liquid,schem,remove_brackets,separate_vertices_by_blockid,separate_vertices_by_chunk
 from .functions.mesh_to_mc import create_mesh_from_dictionary,create_or_clear_collection
 from .register import register_blocks
+from . import dependency_manager
 import json
-import amulet
-import amulet_nbt
 import threading
+
+# 使用依赖管理器导入
+amulet = dependency_manager.amulet
+amulet_nbt = dependency_manager.amulet_nbt
 
 
 class ImportBlock(bpy.types.Operator):
