@@ -14,6 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `codes/dependency_manager.py`: 依赖管理模块，提供安全导入接口和优雅降级
 
 ### 核心功能模块
+- `ui.py`: 定义插件的 UI 面板和操作界面
 - `codes/property.py`: 定义所有 Blender 场景属性，包括路径配置、方块切换列表、MC 版本配置
 - `codes/register.py`: 方块注册系统，将 Minecraft 方块状态映射到 Blender 对象 ID
 - `codes/importfile.py`: 导入 .schem、.nbt 文件和世界存档
@@ -21,12 +22,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `codes/schem.py`: 处理 schem 数据结构，创建点云网格和几何节点
 - `codes/blockstates.py`: 解析 Minecraft blockstate JSON 文件，缓存方块模型数据
 - `codes/functions/mesh_to_mc.py`: 将普通网格体转换为 Minecraft 方块，包含面优化算法
+- `codes/functions/surface_optimization.py`: 包含“合并重叠面”等网格优化算法
+- `codes/functions/sway_animation.py`: 实现植物和树叶的摇摆动画
 
 ### 几何节点系统
 插件依赖外部 `.blend` 文件中的几何节点组（位于 `codes/blend_files/GeometryNodes.blend`）：
 - **Schem 节点组**: 将点云实例化为方块模型
 - **ObjToBlocks 节点组**: 普通网格转方块预览
 - **模型转换节点组**: 完整的网格到方块转换，支持楼梯、台阶等特殊方块
+
+### 多进程支持（实验性）
+位于 `multiprocess/` 目录：
+- `multiprocess_pool.py`: 进程池管理
+- `schem_mp.py`: 多进程 Schem 处理逻辑
+- 此模块用于加速大型文件的处理，目前可能未完全启用
 
 ## Minecraft 版本转换系统
 
@@ -215,7 +224,7 @@ wheels = [
 ## 开发提示
 
 - 添加新方块类型时需更新 `codes/classification_files/block_type.py`
-- 修改 UI 需编辑 `codes/ui.py`
+- 修改 UI 需编辑 `ui.py`
 - 几何节点修改需编辑外部 `blend_files/GeometryNodes.blend`
 - 使用 `bpy.app.timers.register()` 处理耗时操作的完成回调
 - **修改几何节点属性时**：始终使用 try-except 模式处理属性访问，参考 `mesh_to_mc.py` 和 `surface_optimization.py` 中的实现
@@ -227,3 +236,4 @@ wheels = [
 - `doc/data-flow-diagrams.md`: 详细的数据流程图
 - `doc/dependency-update-guide.md`: 依赖更新指南
 - `test_version_support.py`: 版本支持测试脚本
+- `test_version_quick.py`: 快速版本测试脚本（控制台用）

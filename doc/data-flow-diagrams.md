@@ -398,16 +398,16 @@ flowchart TD
 
     subgraph Find["纹理查找"]
         D["get_file_path()<br/>遍历模组/资源包"]
-        E["CTM 检测<br/>Optifine 连接纹理"]
         F["缓存纹理路径"]
     end
 
     subgraph Shader["着色器选择"]
         G{类型判断}
-        H1["PBR着色器<br/>有法线贴图"]
+        H1["PBR着色器<br/>有法线/高光贴图"]
         H2["重叠面着色器<br/>双层纹理"]
         H3["树叶/草着色器<br/>+灰度图"]
-        H4["水体着色器<br/>+透明度"]
+        H6["动态材质<br/>+mcmeta动画"]
+        H7["自发光着色器<br/>+e贴图"]
         H5["标准着色器<br/>基础纹理"]
     end
 
@@ -419,9 +419,10 @@ flowchart TD
 
     subgraph Attribute["材质属性"]
         L["基础颜色纹理"]
-        M["法线贴图"]
+        M["法线/高光/发光贴图"]
         N["透明度"]
         O["金属度/粗糙度"]
+        Q["动画帧率/插值"]
     end
 
     subgraph Output["输出"]
@@ -432,20 +433,21 @@ flowchart TD
     B --> D
     C --> D
 
-    D --> E
-    E --> F
+    D --> F
     F --> G
 
-    G -->|有法线| H1
+    G -->|有法线/高光| H1
     G -->|双层| H2
     G -->|树叶| H3
-    G -->|流体| H4
+    G -->|有动画| H6
+    G -->|有发光| H7
     G -->|其他| H5
 
     H1 --> I
     H2 --> I
     H3 --> I
-    H4 --> I
+    H6 --> I
+    H7 --> I
     H5 --> I
 
     I --> J
@@ -455,6 +457,7 @@ flowchart TD
     K --> M
     K --> N
     K --> O
+    K --> Q
 
     J --> P
 
@@ -466,10 +469,11 @@ flowchart TD
 
 | 着色器 | 条件 | 节点来源 |
 |--------|------|----------|
-| PBR着色器 | 存在 `*_n.png` | `Material.blend` |
+| PBR着色器 | 存在 `*_n.png` 或 `*_s.png` | `Material.blend` |
 | 重叠面着色器 | 双层纹理 | `Material.blend` |
 | 树叶/草着色器 | `block_type.Type1` | `Material.blend` |
-| 水体着色器 | `liquid` 列表 | `Material.blend` |
+| 动态材质 | 存在 `.mcmeta` | `Material.blend` |
+| 自发光着色器 | 存在 `*_e.png` | `Material.blend` |
 | 标准着色器 | 默认 | `Material.blend` |
 
 ### 核心函数
@@ -576,6 +580,8 @@ Blocks/
 | `codes/block.py` | 方块对象创建 |
 | `codes/model.py` | 材质系统 |
 | `codes/functions/get_data.py` | 数据获取 |
+| `codes/functions/surface_optimization.py` | 面优化算法 |
+| `codes/functions/sway_animation.py` | 植物摇摆动画 |
 
 ### 外部依赖
 
