@@ -117,17 +117,9 @@ class Property(bpy.types.PropertyGroup):
         name="资源包路径",
         default=os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"temp", "资源包")
     )
-    bpy.types.Scene.rig_blend_path = bpy.props.StringProperty(
-        name="人物绑定路径",
-        default=os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"codes","blend_files","BaiGave_Rig.blend")
-    )
     bpy.types.Scene.material_blend_path = bpy.props.StringProperty(
         name="材质节点路径",
         default=os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"codes","blend_files","Material.blend")
-    )
-    bpy.types.Scene.wxr_sky_blend_path = bpy.props.StringProperty(
-        name="WXR的天空路径",
-        default=os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"codes","blend_files","SkyV0.12.blend")
     )
     bpy.types.Scene.geometrynodes_blend_path = bpy.props.StringProperty(
         name="几何节点路径",
@@ -211,22 +203,6 @@ class Property(bpy.types.PropertyGroup):
         default=9,
         min=0,
         max=10
-    )
-
-    bpy.types.Scene.download_path = bpy.props.StringProperty(
-        name="插件路径",
-        default="https://github.com/BaiGave/BaiGave_Plugin/releases",
-        description="插件路径"
-    )
-    bpy.types.Scene.qq_number = bpy.props.StringProperty(
-        name="qq群号",
-        default="878232347",
-        description="qq群号"
-    )
-    bpy.types.Scene.bilbil_space = bpy.props.StringProperty(
-        name="bilbil空间",
-        default="https://space.bilibili.com/3461563635731405/video",
-        description="bilbil空间"
     )
 
     bpy.types.Scene.world_name = bpy.props.StringProperty(name="World Name", default="World1")

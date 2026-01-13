@@ -52,21 +52,11 @@ if "mesh_to_mc" in locals():
 else:
 	from .codes.functions import mesh_to_mc
 
-if "BaiGave_Rig" in locals():
-	importlib.reload(BaiGave_Rig)
-else:
-	from .codes.unuse import BaiGave_Rig
-	
 if "surface_optimization" in locals():
 	importlib.reload(surface_optimization)
 else:
 	from .codes.functions import surface_optimization
 
-if "WXR_Sky" in locals():
-	importlib.reload(WXR_Sky)
-else:
-	from .codes.unuse import WXR_Sky
-	
 if "ui" in locals():
 	importlib.reload(ui)
 else:
@@ -76,9 +66,7 @@ module_list = (
 	property,
 	color_dict,
 	sway_animation,
-	BaiGave_Rig,
 	surface_optimization,
-	WXR_Sky,
 	search_file,
 	importfile,
 	exportfile,
@@ -109,4 +97,3 @@ def register():
 def unregister():
 	for mod in reversed(module_list):
 		mod.unregister()
-	del bpy.types.Scene.BaiGave
