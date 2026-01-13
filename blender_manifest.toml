@@ -22,18 +22,19 @@ license = [
 # wheels 由 Blender 自动安装，无需 install.py
 wheels = [
    # 核心 - 跨平台
-   "./wheels/amulet_core-1.9.25-py3-none-any.whl",
-   "./wheels/PyMCTranslate-1.2.27-py3-none-any.whl",
+   "./wheels/amulet_core-1.9.33-py3-none-any.whl",
+   "./wheels/pymctranslate-1.2.39-py3-none-any.whl",
 
    # 工具库 - 跨平台
-   "./wheels/portalocker-2.10.1-py3-none-any.whl",
-   "./wheels/platformdirs-4.2.2-py3-none-any.whl",
-   "./wheels/mutf8-1.0.6-py3-none-any.whl",
+   "./wheels/portalocker-3.2.0-py3-none-any.whl",
+   "./wheels/platformdirs-4.5.1-py3-none-any.whl",
 
-   # Windows 特定依赖
-   "./wheels/pywin32-306-cp311-cp311-win_amd64.whl",
+   # Windows 特定依赖 (C扩展/平台相关)
+   "./wheels/pywin32-311-cp311-cp311-win_amd64.whl",
    "./wheels/amulet_leveldb-1.0.2-cp311-cp311-win_amd64.whl",
-   "./wheels/lz4-4.3.3-cp311-cp311-win_amd64.whl",
-   "./wheels/amulet_nbt-2.1.3-cp311-cp311-win_amd64.whl",
-   "./wheels/pillow-10.4.0-pp310-pypy310_pp73-win_amd64.whl",
+   "./wheels/lz4-4.4.5-cp311-cp311-win_amd64.whl",
+   "./wheels/amulet_nbt-2.1.5-cp311-cp311-win_amd64.whl",
+   "./wheels/pillow-12.1.0-cp311-cp311-win_amd64.whl",
+
+   # 注意：mutf8 已移除（无 cp311 版本，使用纯 Python 回退）
 ]
