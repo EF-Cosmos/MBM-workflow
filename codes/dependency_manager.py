@@ -4,6 +4,62 @@
 提供安全导入接口和依赖检查功能，确保插件在依赖缺失时优雅降级而非崩溃。
 """
 import sys
+
+# ============================================================================
+# Portalocker Monkey Patch - 绕过 pywin32 依赖
+# ============================================================================
+# Portalocker 3.2.0 的 MsvcrtLocker 在初始化时会创建 Win32Locker 实例，
+# 而 Win32Locker 需要 pywin32。由于我们的使用场景不需要共享锁，
+# 可以用虚拟的 Win32Locker 替代。
+
+def _patch_portalocker():
+    """
+    修补 portalocker，移除对 pywin32 的依赖
+
+    MsvcrtLocker 对独占锁使用 msvcrt.locking()，不需要 Win32 API。
+    只有共享锁才需要 Win32Locker，而 Minecraft schem 导入/导出
+    通常不需要共享锁。
+    """
+    try:
+        import portalocker.portalocker as pl_module
+    except ImportError:
+        # portalocker 不可用，无需 patch
+        return
+
+    class _DummyWin32Locker:
+        """虚拟 Win32Locker，避免 pywin32 依赖"""
+        def lock(self, *args, **kwargs):
+            # 共享锁请求时静默失败，回退到无锁行为
+            pass
+
+        def unlock(self, *args, **kwargs):
+            pass
+
+    def _patched_msvcrt_init(self):
+        """
+        MsvcrtLocker 的修补初始化方法
+
+        不创建真正的 Win32Locker 实例，避免 pywin32 导入。
+        """
+        import msvcrt
+
+        # 用虚拟对象替代 Win32Locker
+        self._win32_locker = _DummyWin32Locker()
+
+        # 设置 msvcrt 锁定常量（来自原始代码）
+        attrs = ['LK_LOCK', 'LK_RLCK', 'LK_NBLCK', 'LK_UNLCK', 'LK_NBRLCK']
+        defaults = [0, 1, 2, 3, 2]
+        for attr, default_val in zip(attrs, defaults):
+            if not hasattr(msvcrt, attr):
+                setattr(msvcrt, attr, default_val)
+
+    # 应用 patch
+    pl_module.MsvcrtLocker.__init__ = _patched_msvcrt_init
+
+# 在模块导入时立即执行 patch
+_patch_portalocker()
+# ============================================================================
+
 import bpy
 
 

@@ -101,6 +101,8 @@ wheels/
 | portalocker | 文件锁定 | 3.2.0 |
 | pillow | 图像处理 | 12.1.0 |
 
+> **注意**: Portalocker 3.2.0 在 Windows 上默认需要 pywin32 依赖。本项目通过 Monkey Patch 绕过了此限制（使用 `msvcrt.locking()` 而非 Win32 API），详见 `doc/portalocker-pywin32-workaround.md`。
+
 ### 安全导入模式
 
 使用 `codes/dependency_manager.py` 提供安全导入：
@@ -282,6 +284,7 @@ if text_data:
 
 - `doc/data-flow-diagrams.md`: 详细的数据流程图
 - `doc/dependency-update-guide.md`: 依赖更新指南
+- `doc/portalocker-pywin32-workaround.md`: Portalocker pywin32 依赖绕过方案
 - `doc/water-handling-analysis.md`: 水体方块处理分析
 - `test_version_support.py`: 版本支持测试脚本
 - `test_version_quick.py`: 快速版本测试脚本（控制台用）

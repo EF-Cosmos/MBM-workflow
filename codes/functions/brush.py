@@ -9,7 +9,8 @@ class BAIGAVE_OT_BlockBrush(bpy.types.Operator):
     bl_label = "方块笔刷"
     bl_options = {'REGISTER', 'UNDO'}
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.kd_tree = None
         self.target_obj = None
 

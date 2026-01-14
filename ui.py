@@ -10,14 +10,9 @@ class MainPanel(bpy.types.Panel):
     bl_category ='MBM_workflow'
     bl_options = {'HEADER_LAYOUT_EXPAND'}
 
-    def __init__(self) -> None:
-        bpy.ops.baigave.read_mods_dir()
-        bpy.ops.baigave.read_resourcepacks_dir()
-        bpy.ops.baigave.read_versions_dir()
-        bpy.ops.baigave.read_saves_dir()
-        bpy.ops.baigave.read_schems_dir()
-        bpy.ops.baigave.read_colors_dir()
-        super().__init__()
+    # Note: Previously __init__ called directory read operations, but this is problematic
+    # because Blender creates panel instances frequently. These operations should be
+    # called explicitly by the user or triggered when needed.
 
     def draw(self,context):
         layout = self.layout
