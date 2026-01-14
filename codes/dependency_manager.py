@@ -122,35 +122,67 @@ class DependencyManager:
     def _show_popup(cls, title, message, icon='INFO'):
         """
         显示 Blender 弹窗
-
-        Args:
-            title: 弹窗标题
-            message: 弹窗消息
-            icon: 图标类型
         """
         def draw(self, context):
             layout = self.layout
             for line in message.split('\n'):
                 layout.label(text=line)
 
-        bpy.types.Operator.cls = type(
-            'DependencyError',
-            (bpy.types.Operator,),
-            {
-                'bl_idname': 'wm.dependency_error',
-                'bl_label': title,
-                'bl_description': message,
-                'bl_options': {'REGISTER'},
-                'execute': lambda self, context: {'CANCELLED'},
-                'invoke': lambda self, context, event: context.window_manager.invoke_popup(self),
-                'draw': draw
-            }
-        )
+        # 动态修改 Operator 的属性以显示不同的消息
+        # 注意：这在多线程或频繁调用时可能不安全，但用于模态弹窗通常可以接受
+        BAIGAVE_OT_DependencyError.bl_label = title
+        BAIGAVE_OT_DependencyError.message = message
+        BAIGAVE_OT_DependencyError.draw_func = draw
+        
+        # 强制更新类注册以应用新标签（可选，但通常 invoke 会处理）
         try:
-            bpy.ops.wm.dependency_error()
-        except Exception:
-            # 如果弹窗失败，在控制台输出
+            bpy.utils.unregister_class(BAIGAVE_OT_DependencyError)
+            bpy.utils.register_class(BAIGAVE_OT_DependencyError)
+        except:
+            pass
+            
+        try:
+            bpy.ops.wm.dependency_error('INVOKE_DEFAULT')
+        except Exception as e:
             print(f"[{title}] {message}")
+            print(f"Popup error: {e}")
+
+
+class BAIGAVE_OT_DependencyError(bpy.types.Operator):
+    bl_idname = "wm.dependency_error"
+    bl_label = "Dependency Error"
+    bl_description = "Show dependency error"
+    bl_options = {'REGISTER', 'INTERNAL'}
+    
+    message = "Error"
+    draw_func = None
+
+    def execute(self, context):
+        return {'CANCELLED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_popup(self)
+
+    def draw(self, context):
+        if hasattr(self, 'draw_func') and self.draw_func:
+            self.draw_func(self, context)
+        elif hasattr(self.__class__, 'draw_func') and self.__class__.draw_func:
+            self.__class__.draw_func(self, context)
+        else:
+            layout = self.layout
+            layout.label(text=self.message)
+
+def register():
+    try:
+        bpy.utils.register_class(BAIGAVE_OT_DependencyError)
+    except ValueError:
+        pass
+
+def unregister():
+    try:
+        bpy.utils.unregister_class(BAIGAVE_OT_DependencyError)
+    except:
+        pass
 
 
 # 提供全局导入接口

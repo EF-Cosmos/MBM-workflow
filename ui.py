@@ -3,11 +3,11 @@ import bpy
 
 #主面板
 class MainPanel(bpy.types.Panel):
-    bl_label = "白给的工具"
+    bl_label = "MBM_workflow"
     bl_idname ="MainPanel"
     bl_space_type ='VIEW_3D'
     bl_region_type = 'UI'
-    bl_category ='白给的工具'
+    bl_category ='MBM_workflow'
     bl_options = {'HEADER_LAYOUT_EXPAND'}
 
     def __init__(self) -> None:
@@ -22,7 +22,7 @@ class MainPanel(bpy.types.Panel):
     def draw(self,context):
         layout = self.layout
         row = layout.row()
-        row.label(text = "白给的工具" ,icon='BOLD')
+        row.label(text = "MBM_workflow" ,icon='BOLD')
 
 
 #方块面板
@@ -31,7 +31,7 @@ class BlockPanel(bpy.types.Panel):
     bl_idname ="BlockPanel"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
-    bl_category ='BaiGave'
+    bl_category ='MBM_workflow'
     bl_parent_id ='MainPanel'
     bl_options = {'DEFAULT_CLOSED'}
     
@@ -48,7 +48,7 @@ class ImportPanel(bpy.types.Panel):
     bl_idname ="ImportPanel"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
-    bl_category ='BaiGave'
+    bl_category ='MBM_workflow'
     bl_parent_id ='MainPanel'
     bl_options = {'DEFAULT_CLOSED'}
     
@@ -107,7 +107,7 @@ class ExportPanel(bpy.types.Panel):
     bl_idname ="ExportPanel"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
-    bl_category ='BaiGave'
+    bl_category ='MBM_workflow'
     bl_parent_id ='MainPanel'
     bl_options = {'DEFAULT_CLOSED'}
     
@@ -129,7 +129,7 @@ class CreateLevel(bpy.types.Panel):
     bl_idname ="CreateLevelPanel"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
-    bl_category ='BaiGave'
+    bl_category ='MBM_workflow'
     bl_parent_id ='MainPanel'
     bl_options = {'DEFAULT_CLOSED'}
     
@@ -172,7 +172,7 @@ class EditPanel(bpy.types.Panel):
     bl_idname ="EditPanel"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
-    bl_category ='BaiGave'
+    bl_category ='MBM_workflow'
     bl_parent_id ='MainPanel'
     bl_options = {'DEFAULT_CLOSED'}
     
@@ -187,11 +187,18 @@ class EditPanel(bpy.types.Panel):
         row = layout.row()
         row.operator("baigave.switch_blocks_panel", text="替换方块")
         row = layout.row()
+        row.label(text="可视化编辑：")
+        row = layout.row()
+        row.prop(scene.my_properties, "brush_block_enum", text="")
+        row.operator("baigave.block_brush", text="启动方块笔刷", icon='BRUSH_DATA')
+        row = layout.row()
         row.operator("baigave.get_average_color", text="得到图片平均颜色值")
         row = layout.row()
         row.operator("baigave.objtoblocks", text="生成点云(转楼梯/台阶方块所需)")
         row = layout.row()
         row.operator("baigave.blockblender", text="转换网格体(方块)")
+        row = layout.row()
+        row.operator("baigave.paint_block", text="应用顶点色到方块")
 
         
 #创建存档面板
@@ -200,7 +207,7 @@ class MoreLevelSettings(bpy.types.Panel):
     bl_idname ="MoreLevelSettings"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
-    bl_category ='BaiGave'
+    bl_category ='MBM_workflow'
     bl_parent_id ='CreateLevelPanel'
     bl_options = {'DEFAULT_CLOSED'}
     
@@ -232,7 +239,7 @@ class Ability(bpy.types.Panel):
     bl_idname ="Ability"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
-    bl_category ='BaiGave'
+    bl_category ='MBM_workflow'
     bl_parent_id ='CreateLevelPanel'
     bl_options = {'DEFAULT_CLOSED'}
     
@@ -262,7 +269,7 @@ class GameRules(bpy.types.Panel):
     bl_idname ="GameRules"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
-    bl_category ='BaiGave'
+    bl_category ='MBM_workflow'
     bl_parent_id ='MoreLevelSettings'
     bl_options = {'DEFAULT_CLOSED'}
     
@@ -392,7 +399,7 @@ class ResourcepacksPanel(bpy.types.Panel):
     bl_idname = "ResourcepacksPanel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'BaiGave'
+    bl_category = 'MBM_workflow'
     bl_parent_id = 'ModPanel'
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -421,7 +428,7 @@ class ModPanel(bpy.types.Panel):
     bl_idname = "ModPanel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'BaiGave'
+    bl_category = 'MBM_workflow'
     bl_parent_id = 'MainPanel'
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -501,7 +508,7 @@ class SwitchBlockList(bpy.types.UIList):
             row = layout.row(align=True)
             #row.label(text=item.name)
             split = row.split(factor=0.65)
-            split.row().prop(item, "target_id", text="", emboss=False)
+            split.row().prop(item, "target_block_enum", text="")
 class SchemImportPanel(bpy.types.Operator):
     bl_idname = "baigave.schem_import_panel"
     bl_label = "导入Schem文件二级界面"
@@ -649,6 +656,7 @@ class SwitchBlocks(bpy.types.Operator):
             item = my_properties.switch_block_list.add()
             item.id = blockid
             item.target_id = blockid
+            item.target_block_enum = str(blockid)
 
             # 根据 blockid 找到对应的名称
             block_name = None

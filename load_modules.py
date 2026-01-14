@@ -2,66 +2,49 @@ import bpy
 import importlib
 
 # 依赖管理：必须首先加载
-if "dependency_manager" in locals():
-	importlib.reload(dependency_manager)
-else:
-	from .codes import dependency_manager
+from .codes import dependency_manager
+importlib.reload(dependency_manager)
 
 # install.py 在 Blender 5.0+ 中不再需要
 # Blender 会自动处理 blender_manifest.toml 中的 wheels
-# if "install" in locals():
-# 	importlib.reload(install)
-# else:
-# 	from . import install
 
-if "property" in locals():
-	importlib.reload(property)
-else:
-	from .codes import property
-if "color_dict" in locals():
-	importlib.reload(color_dict)
-else:
-	from .codes import color_dict
-if "sway_animation" in locals():
-	importlib.reload(sway_animation)
-else:
-	from .codes.functions import sway_animation
-	
-if "importfile" in locals():
-	importlib.reload(importfile)
-else:
-	from .codes import importfile
+# 加载其他模块
+from .codes import property
+importlib.reload(property)
 
-if "exportfile" in locals():
-	importlib.reload(exportfile)
-else:
-	from .codes import exportfile
+from .codes import color_dict
+importlib.reload(color_dict)
 
-if "create_world" in locals():
-	importlib.reload(create_world)
-else:
-	from .codes import create_world
+from .codes.functions import sway_animation
+importlib.reload(sway_animation)
 
-if "search_file" in locals():
-	importlib.reload(search_file)
-else:
-	from .codes.functions import search_file
+from .codes import importfile
+importlib.reload(importfile)
 
-if "mesh_to_mc" in locals():
-	importlib.reload(mesh_to_mc)
-else:
-	from .codes.functions import mesh_to_mc
+from .codes import exportfile
+importlib.reload(exportfile)
 
-if "surface_optimization" in locals():
-	importlib.reload(surface_optimization)
-else:
-	from .codes.functions import surface_optimization
+from .codes import create_world
+importlib.reload(create_world)
 
-if "ui" in locals():
-	importlib.reload(ui)
-else:
-	from . import ui
-	
+from .codes.functions import search_file
+importlib.reload(search_file)
+
+from .codes.functions import mesh_to_mc
+importlib.reload(mesh_to_mc)
+
+from .codes.functions import surface_optimization
+importlib.reload(surface_optimization)
+
+from .codes.functions import brush
+importlib.reload(brush)
+
+from .codes.functions import paint
+importlib.reload(paint)
+
+from . import ui
+importlib.reload(ui)
+
 module_list = (
 	property,
 	color_dict,
@@ -72,11 +55,19 @@ module_list = (
 	exportfile,
 	create_world,
 	mesh_to_mc,
+	brush,
+	paint,
 	ui
 )
 
 
+_modules_loaded = False
+
 def register():
+	global _modules_loaded
+	# 注册依赖管理器（用于显示弹窗）
+	dependency_manager.register()
+
 	# 首先检查依赖
 	missing = dependency_manager.DependencyManager.check_dependencies()
 	if missing:
@@ -91,9 +82,21 @@ def register():
 	# 所有依赖可用，继续注册模块
 	for mod in module_list:
 		mod.register()
-
+	
+	_modules_loaded = True
 
 
 def unregister():
-	for mod in reversed(module_list):
-		mod.unregister()
+	global _modules_loaded
+	if _modules_loaded:
+		for mod in reversed(module_list):
+			try:
+				mod.unregister()
+			except Exception:
+				pass
+		_modules_loaded = False
+	
+	try:
+		dependency_manager.unregister()
+	except Exception:
+		pass

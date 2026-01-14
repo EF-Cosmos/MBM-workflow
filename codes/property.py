@@ -4,7 +4,11 @@ import zipfile
 import threading
 import functools
 import shutil
-import toml
+try:
+    import tomllib as toml
+except ImportError:
+    import toml
+
 import json
 import random
 import importlib
@@ -60,6 +64,30 @@ def switch_block_update(self, context):
     return
 
 
+
+def get_block_items(self, context):
+    items = []
+    try:
+        text_data = bpy.data.texts.get("Blocks.py")
+        if text_data:
+            block_map = eval(text_data.as_string())
+            for name, id_val in block_map.items():
+                items.append((str(id_val), name, f"ID: {id_val}"))
+            items.sort(key=lambda x: x[1])
+    except Exception:
+        pass
+        
+    if not items:
+        items = [("0", "None", "No blocks found")]
+    return items
+
+def update_target_id_from_enum(self, context):
+    try:
+        if self.target_block_enum:
+            self.target_id = int(self.target_block_enum)
+    except ValueError:
+        pass
+
 class ModInfo(bpy.types.PropertyGroup):
     icon: bpy.props.StringProperty(name="图标") # type: ignore
     name: bpy.props.StringProperty(name="名称") # type: ignore
@@ -81,10 +109,23 @@ class SwitchBlockInfo(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(name="名称") # type: ignore
     id: bpy.props.IntProperty(name="ID") # type: ignore
     target_id: bpy.props.IntProperty(name="TargetID",update=switch_block_update) # type: ignore
+    target_block_enum: bpy.props.EnumProperty(
+        name="选择方块",
+        items=get_block_items,
+        update=update_target_id_from_enum,
+        description="选择要替换成的目标方块"
+    ) # type: ignore
+
 
 #属性
 class Property(bpy.types.PropertyGroup):
     color_file_path: bpy.props.StringProperty(name="Color File Path",default="") # type: ignore
+    brush_block_enum: bpy.props.EnumProperty(
+        name="笔刷方块",
+        items=get_block_items,
+        description="笔刷使用的方块"
+    )
+
     bpy.types.Scene.mods_dir = bpy.props.StringProperty(
         name="模组路径",
         default=os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"temp")
@@ -545,8 +586,8 @@ def unzip_mods_files():
                         break  # 找到fabric.mod.json后终止循环
                     elif member == 'META-INF/mods.toml':
                         with zip_ref.open('META-INF/mods.toml') as mods_toml_file:
-                            mods_toml_content = mods_toml_file.read()
-                            mods_toml_data = toml.loads(mods_toml_content.decode('utf-8'))
+                            mods_toml_content = mods_toml_file.read().decode('utf-8')
+                            mods_toml_data = toml.loads(mods_toml_content)
                             if "mods" in mods_toml_data:
                                 for mod_entry in mods_toml_data["mods"]:
                                     mod_id = mod_entry["modId"]
@@ -726,7 +767,11 @@ def register():
     threading.Thread(target=unzip_mods_files).start()
     threading.Thread(target=unzip_resourcepacks_files).start()
     for cls in classes:
-        bpy.utils.register_class(cls)
+        try:
+            bpy.utils.register_class(cls)
+        except ValueError:
+            bpy.utils.unregister_class(cls)
+            bpy.utils.register_class(cls)
     bpy.types.Scene.my_properties = bpy.props.PointerProperty(type=Property)
     importlib.reload(config)
     

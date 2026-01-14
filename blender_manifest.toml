@@ -1,10 +1,10 @@
 schema_version = "1.0.0"
 
-id = "BaiGave_Plugin"
+id = "MBM_workflow"
 version = "1.0.0"
-name = "BaiGave_Plugin"
-tagline = "BaiGave_Plugin"
-maintainer = "白给 <1402452699@qq.com>"
+name = "MBM_workflow"
+tagline = "MBM_workflow"
+maintainer = "EF_Cosmos <2489164754@qq.com>"
 type = "add-on"
 
 
