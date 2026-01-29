@@ -6,3 +6,15 @@ __pycache__/
 .vscode/
 .idea/
 *.log
+
+# 未使用的 Blend 文件（保留本地，不加入版本控制）
+/codes/blend_files/ProgrammaticCity.blend
+/codes/blend_files/Default.blend
+/codes/blend_files/Map.blend
+/codes/blend_files/GeometryNodes_Water.blend
+/codes/blend_files/WaterV0.2.blend
+
+# 测试文件
+*.schem
+*.litematic
+mods/
