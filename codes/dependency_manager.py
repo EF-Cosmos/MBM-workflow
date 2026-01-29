@@ -246,6 +246,7 @@ def unregister():
 amulet = DependencyManager.safe_import('amulet')
 amulet_nbt = DependencyManager.safe_import('amulet_nbt')
 numpy = DependencyManager.safe_import('numpy', fallback=None)
+litemapy = DependencyManager.safe_import('litemapy')
 
 
 def require_amulet():

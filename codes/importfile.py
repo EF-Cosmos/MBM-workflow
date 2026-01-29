@@ -7,7 +7,7 @@ import re
 from .block import block
 from .functions.get_data import get_all_data
 from .classification_files.block_type import exclude
-from .schem import schem_chunk,schem_liquid,schem,remove_brackets,separate_vertices_by_blockid,separate_vertices_by_chunk
+from .schem import schem_chunk,schem_liquid,schem,remove_brackets,separate_vertices_by_blockid,separate_vertices_by_chunk,litematic_to_mesh
 from .functions.mesh_to_mc import create_mesh_from_dictionary,create_or_clear_collection
 from .register import register_blocks
 from . import dependency_manager
@@ -249,6 +249,354 @@ class ImportSchem(bpy.types.Operator):
 
         return {'FINISHED'}
     
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+
+class ReloadBlocks(bpy.types.Operator):
+    """重载失效或空的方块缓存，使插件重新尝试读取模型"""
+    bl_idname = "baigave.reload_blocks"
+    bl_label = "重载失效方块"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        text_data = bpy.data.texts.get("Blocks.py")
+        if not text_data:
+            self.report({'WARNING'}, "未找到 Blocks.py 数据")
+            return {'FINISHED'}
+
+        try:
+            id_map = eval(text_data.as_string())
+        except Exception as e:
+            self.report({'ERROR'}, f"无法解析方块数据: {e}")
+            return {'CANCELLED'}
+
+        collection = bpy.data.collections.get("Blocks")
+        if not collection:
+            self.report({'WARNING'}, "未找到 Blocks 集合")
+            return {'FINISHED'}
+
+        to_remove = []
+        # 不需要重载的方块列表（确实是空的或特殊的）
+        skip_list = ["minecraft:air", "minecraft:barrier", "minecraft:structure_void", "minecraft:light"]
+
+        for id_str, index in id_map.items():
+            if id_str in skip_list:
+                continue
+            
+            # 对象命名格式: "index#id"
+            # 查找以 "index#" 开头的对象
+            target_obj = None
+            prefix = f"{index}#"
+            
+            found = False
+            for obj in collection.objects:
+                if obj.name.startswith(prefix):
+                    target_obj = obj
+                    found = True
+                    break
+            
+            is_broken = False
+            if not found:
+                # 记录在案但对象丢失 -> 需要重置
+                is_broken = True
+            elif target_obj and hasattr(target_obj.data, 'vertices') and len(target_obj.data.vertices) == 0:
+                # 有对象但没有顶点数据 -> 可能是之前导入失败生成的空对象
+                is_broken = True
+                bpy.data.objects.remove(target_obj, do_unlink=True)
+            
+            if is_broken:
+                to_remove.append(id_str)
+
+        # 更新 id_map
+        if to_remove:
+            for id_str in to_remove:
+                if id_str in id_map:
+                    del id_map[id_str]
+            
+            # 写回 Blocks.py
+            text_data.clear()
+            text_data.write("{\n")
+            # 保持排序以便查看
+            for key, value in sorted(id_map.items(), key=lambda item: item[1]):
+                text_data.write(f"    \"{key}\": {value},\n")
+            text_data.write("}\n")
+            
+            context.view_layer.update()
+            self.report({'INFO'}, f"已清理 {len(to_remove)} 个失效方块记录。下次导入时将重新加载。")
+        else:
+            self.report({'INFO'}, "未发现需要重载的失效方块。")
+
+        return {'FINISHED'}
+
+
+# 导入.litematic文件的操作类
+class ImportLitematic(bpy.types.Operator):
+    bl_idname = "baigave.import_litematic"
+    bl_label = "导入.litematic文件"
+
+    filepath: bpy.props.StringProperty(subtype="FILE_PATH") # type: ignore
+    filter_glob: bpy.props.StringProperty(default="*.litematic", options={'HIDDEN'}) # type: ignore
+    files: bpy.props.CollectionProperty(type=bpy.types.PropertyGroup) # type: ignore
+
+
+    def _safe_load_nbt(self, context):
+        """Safe wrapper to define Region.from_nbt before litemapy loads"""
+         # Monkey-patch litemapy's Region.from_nbt to handle list index out of range errors
+        try:
+             # We need to import litemapy here (it's already loaded via dependency_manager but we need the module object)
+            from . import dependency_manager
+            import math
+            litemapy_mod = dependency_manager.litemapy
+
+            
+            # The error 'list index out of range' in Region.from_nbt usually happens at:
+            # region.__blocks[x][y][z] = bit_array[ind]
+            # or
+            # del region.__palette[0]
+            
+            # Let's verify if we can access schem.py's Region class
+            if hasattr(litemapy_mod.schematic, 'Region'):
+                RegionClass = litemapy_mod.schematic.Region
+                
+                # Check if we already patched it
+                if getattr(RegionClass, '_is_patched_safe', False):
+                    return
+
+                original_from_nbt = RegionClass.from_nbt
+
+                @staticmethod
+                def safe_from_nbt(nbt):
+                    try:
+                        return original_from_nbt(nbt)
+                    except IndexError as e:
+                        # If list index out of range happens, try to inspect why or return a dummy region
+                        # But returning dummy region might break Schematic.from_nbt structure.
+                        # Instead, we want to fix the data if possible.
+                        # Since we can't easily fix the NBT data on the fly without parsing logic...
+                        
+                        # Let's try a robust implementation of reading the region
+                        # This requires re-implementing part of Region.from_nbt
+                        
+                        print(f"Litematic Fix: Detected malformed region data ({e}). Attempting to recover...")
+                        
+                        # Re-impl minimal parts
+                        pos = nbt["Position"]
+                        x, y, z = int(pos["x"]), int(pos["y"]), int(pos["z"])
+                        size = nbt["Size"]
+                        w, h, l = int(size["x"]), int(size["y"]), int(size["z"])
+                        
+                        region = RegionClass(x, y, z, w, h, l)
+                        
+                        # Populate palette safely
+                        # Access private member if needed, or use public methods if available?
+                        # Region attributes are __palette (private).
+                        # We need to use name mangling: _Region__palette
+                        
+                        palette_list = getattr(region, "_Region__palette")
+                        if len(palette_list) > 0 and palette_list[0].id == "minecraft:air":
+                             del palette_list[0]
+                        
+                        from . import dependency_manager
+                        BlockState = dependency_manager.litemapy.minecraft.BlockState
+                        
+                        for block_nbt in nbt["BlockStatePalette"]:
+                             try:
+                                block = BlockState.from_nbt(block_nbt)
+                                palette_list.append(block)
+                             except Exception as block_err:
+                                print(f"Skipping bad block in palette: {block_err}")
+                                # Add AIR to keep index alignment if possible, or just skip
+                                palette_list.append(BlockState("minecraft:air"))
+
+                        # Skip entities for now to minimize errors
+                        
+                        # Process blocks
+                        blocks = nbt["BlockStates"]
+                        nbits = max(math.ceil(math.log(len(palette_list), 2)), 2)
+                        
+                        LitematicaBitArray = dependency_manager.litemapy.storage.LitematicaBitArray
+                        bit_array = LitematicaBitArray.from_nbt_long_array(blocks, abs(w*h*l), nbits)
+                        
+                        block_grid = getattr(region, "_Region__blocks")
+                        
+                        # Safe assignment
+                        total_blocks = abs(w * h * l)
+                        palette_len = len(palette_list)
+                        
+                        for i in range(total_blocks):
+                            # Calc coords
+                            # ind = (y * abs(width * length)) + z * abs(width) + x
+                            # We can just iterate linearly if we match the loop order
+                            pass
+                            
+                        # The original code loop:
+                        # for x in range(abs(width)):
+                        #     for y in range(abs(height)):
+                        #         for z in range(abs(length)):
+                        #             ind = (y * abs(width * length)) + z * abs(width) + x
+                        #             bit_array[ind]
+                        
+                        # If bit_array[ind] fails, it means ind >= len(bit_array).
+                        # If assigning fails, it means block_grid is not right shape (unlikely if init correct)
+                        # Or palette index is out of range? block_grid stores indices.
+                        
+                        width_abs, height_abs, length_abs = abs(w), abs(h), abs(l)
+                        
+                        # Using try-except inside loop is slow but safe
+                        for x_i in range(width_abs):
+                            for y_i in range(height_abs):
+                                for z_i in range(length_abs):
+                                    ind = (y_i * width_abs * length_abs) + z_i * width_abs + x_i
+                                    try:
+                                        val = bit_array[ind]
+                                        # Clamp value to palette range
+                                        if val >= palette_len:
+                                            val = 0 # Air
+                                        block_grid[x_i][y_i][z_i] = val
+                                    except IndexError:
+                                        block_grid[x_i][y_i][z_i] = 0 # Default/Air
+
+                        return region
+
+                RegionClass.from_nbt = safe_from_nbt
+                setattr(RegionClass, '_is_patched_safe', True)
+                print("Litemapy patched for safe loading.")
+                
+        except Exception as e:
+            print(f"Failed to patch litemapy: {e}")
+
+    def execute(self, context):
+        from . import dependency_manager
+        import math
+        
+        # Apply patch before loading
+        self._safe_load_nbt(context)
+
+        litemapy = dependency_manager.litemapy
+
+
+        if litemapy is None:
+            self.report({'ERROR'}, "litemapy 库未安装")
+            return {'CANCELLED'}
+
+        for f in self.files:
+            self.filepath = str(os.path.dirname(self.filepath)) + "\\" + str(f.name)
+            base_filename = os.path.basename(self.filepath).replace(".litematic", "")
+
+            try:
+                schem = litemapy.Schematic.load(self.filepath)
+            except Exception as e:
+                self.report({'ERROR'}, f"无法加载文件: {str(e)}")
+                return {'CANCELLED'}
+
+            if not schem.regions:
+                self.report({'WARNING'}, "文件不包含任何区域")
+                return {'CANCELLED'}
+
+            region_count = len(schem.regions)
+
+            for region_name, region in schem.regions.items():
+                # 尝试修复 invalid index issues (导致 list index out of range)
+                try:
+                    # 访问私有属性 (name mangling: Region -> _Region)
+                    blocks = getattr(region, "_Region__blocks", None)
+                    palette = getattr(region, "_Region__palette", None)
+                    
+                    if blocks is not None and palette is not None:
+                        import numpy as np
+                        p_len = len(palette)
+                        if p_len > 0 and isinstance(blocks, np.ndarray):
+                             # 检查是否有超出调色板范围的索引
+                             # 注意: numpy.any() 可能会比较慢，但比起崩溃要好
+                             if np.any(blocks >= p_len):
+                                 print(f"[Import Fix] 在区域 '{region_name}' 中发现无效的方块索引。正在修正...")
+                                 # 将无效索引重置为 0 (通常是 minecraft:air)
+                                 blocks[blocks >= p_len] = 0
+                except Exception as e:
+                    print(f"[Import Fix] 尝试修复区域数据时出错: {e}")
+
+                # 处理单个区域数据
+                block_dict, bounds = self._process_single_region(region, region_name)
+
+                if not block_dict:
+                    print(f"区域 '{region_name}' 不包含任何方块，跳过")
+                    continue
+
+                # 生成对象名称：单区域使用原文件名，多区域添加区域后缀
+                if region_count == 1:
+                    obj_filename = base_filename
+                else:
+                    obj_filename = f"{base_filename}_{region_name}"
+
+                # 创建网格对象
+                obj = litematic_to_mesh(block_dict, bounds, obj_filename)
+
+                # 应用可选的顶点分离
+                if context.scene.separate_vertices_by_blockid:
+                    separate_vertices_by_blockid(obj)
+                elif context.scene.separate_vertices_by_chunk:
+                    separate_vertices_by_chunk(obj)
+
+            print(f"成功导入 {region_count} 个区域")
+
+        return {'FINISHED'}
+
+    def _process_single_region(self, region, region_name):
+        """处理单个区域，返回方块字典和边界"""
+        from .classification_files.block_type import exclude
+
+        block_dict = {}
+        all_coords = []
+
+        for x, y, z in region.block_positions():
+            block = region[x, y, z]
+
+            if block.id == "minecraft:air":
+                continue
+
+            block_str = self._format_block_state(block)
+            base_block = self._remove_brackets(block_str)
+
+            if base_block in exclude:
+                continue
+
+            # 使用区域相对坐标
+            block_dict[(x, y, z)] = block_str
+            all_coords.append((x, y, z))
+
+        # 计算边界
+        if all_coords:
+            min_coords = tuple(min(coords[i] for coords in all_coords) for i in range(3))
+            max_coords = tuple(max(coords[i] for coords in all_coords) for i in range(3))
+        else:
+            min_coords = (0, 0, 0)
+            max_coords = (0, 0, 0)
+
+        return block_dict, (min_coords, max_coords)
+
+    def _format_block_state(self, block):
+        """格式化方块状态字符串"""
+        block_str = block.id
+        if hasattr(block, 'properties') and block.properties:
+            props = ','.join(f"{k}={v}" for k, v in block.properties.items())
+            block_str = f"{block.id}[{props}]"
+        return block_str
+
+    def _remove_brackets(self, input_string):
+        """移除方括号内容获取基础方块名"""
+        output_string = ""
+        inside_brackets = False
+        for char in input_string:
+            if char == '[':
+                inside_brackets = True
+            elif char == ']' and inside_brackets:
+                inside_brackets = False
+            elif not inside_brackets:
+                output_string += char
+        return output_string
+
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
@@ -530,8 +878,9 @@ class ImportWorld(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 
-classes=[ImportBlock,ImportSchem,MultiprocessSchem,Importjson,ImportWorld,#SelectArea,
-         ImportNBT,SNA_AddonPreferences_F35F8,SNA_OT_My_Generic_Operator_A38B8,ImportSchemLiquid,MultiprocessImport]
+classes=[ImportBlock,ImportSchem,ImportLitematic,MultiprocessSchem,Importjson,ImportWorld,#SelectArea,
+         ImportNBT,SNA_AddonPreferences_F35F8,SNA_OT_My_Generic_Operator_A38B8,ImportSchemLiquid,MultiprocessImport,
+         ReloadBlocks]
 
 def register():
     for cls in classes:

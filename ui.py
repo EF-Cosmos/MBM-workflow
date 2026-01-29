@@ -74,8 +74,10 @@ class ImportPanel(bpy.types.Panel):
         box = layout.box()
         box.label(text="导入方块")
         box.operator("baigave.import_block", text="导入方块")
+        box.operator("baigave.reload_blocks", text="重载失效方块", icon="FILE_REFRESH")
 
         box = layout.box()
+
         box.label(text="导入.nbt文件")
         box.operator("baigave.import_nbt", text="导入.nbt文件")
 

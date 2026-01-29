@@ -12,6 +12,7 @@ import pickle
 
 # 使用依赖管理器导入
 amulet = dependency_manager.amulet
+litemapy = dependency_manager.litemapy
 
 
 def get_mc_version_config():
@@ -606,3 +607,92 @@ def separate_vertices_by_chunk(obj, chunk_size=16):
 
     # 删除原始对象
     bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def litematic_to_mesh(block_dict, bounds, filename="litematic"):
+    """将 litematic 数据转换为点云网格"""
+    from .classification_files.block_type import exclude
+
+    min_coords, max_coords = bounds
+
+    # 创建网格（与 schem.py 相同的模式）
+    mesh = bpy.data.meshes.new(name=filename)
+    mesh.attributes.new(name='blockid', type="INT", domain="POINT")
+    mesh.attributes.new(name='waterlogged', type="INT", domain="POINT")
+    mesh.attributes.new(name='biome', type="FLOAT_COLOR", domain="POINT")
+    obj = bpy.data.objects.new(filename, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+
+    # 创建 Blocks 集合
+    collection_name = "Blocks"
+    create_or_clear_collection(collection_name)
+    collection = bpy.data.collections.get(collection_name)
+    nodetree_target = "Schem"
+
+    # 导入几何节点
+    try:
+        nodes_modifier.node_group = bpy.data.node_groups[collection_name]
+    except:
+        file_path = bpy.context.scene.geometrynodes_blend_path
+        inner_path = 'NodeTree'
+        object_name = nodetree_target
+        bpy.ops.wm.append(
+            filepath=os.path.join(file_path, inner_path, object_name),
+            directory=os.path.join(file_path, inner_path),
+            filename=object_name
+        )
+
+    # 构建顶点和 ID 列表
+    vertices = []
+    ids = []
+    waterlogged = []
+
+    for (x, y, z), block_str in block_dict.items():
+        # 坐标转换：MC (x, y, z) → Blender (x, -z, y)
+        vertices.append((x - min_coords[0], -(z - min_coords[2]), y - min_coords[1]))
+        ids.append(block_str)
+        waterlogged.append(0)
+
+    # 注册方块
+    id_map = register_blocks(list(set(ids)))
+
+    # 构建网格
+    mesh.from_pydata(vertices, [], [])
+
+    for i, item in enumerate(obj.data.attributes['blockid'].data):
+        id_str = re.escape(ids[i])
+        item.value = id_map[id_str]
+
+    for i, item in enumerate(obj.data.attributes['waterlogged'].data):
+        item.value = waterlogged[i]
+
+    for i, item in enumerate(obj.data.attributes['biome'].data):
+        item.color[:] = (0.149, 0.660, 0.10, 0.00)
+
+    mesh.update()
+
+    # 添加几何节点修改器
+    has_nodes_modifier = False
+    for modifier in obj.modifiers:
+        if modifier.type == 'NODES':
+            has_nodes_modifier = True
+            break
+
+    if not has_nodes_modifier:
+        obj.modifiers.new(name="Schem", type="NODES")
+
+    nodes_modifier = obj.modifiers[0]
+
+    # 复制节点组
+    try:
+        original_node_group = bpy.data.node_groups['Schem']
+        new_node_group = original_node_group.copy()
+        new_node_group.name = collection_name
+    except KeyError:
+        print("Error copying node group")
+
+    nodes_modifier.node_group = bpy.data.node_groups[collection_name]
+    bpy.data.node_groups[collection_name].nodes["集合信息"].inputs[0].default_value = collection
+    nodes_modifier.show_viewport = True
+
+    return obj

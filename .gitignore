@@ -17,4 +17,12 @@ __pycache__/
 # 测试文件
 *.schem
 *.litematic
+*.nbt
 mods/
+
+# 运行时缓存与临时文件
+temp/
+temp_litemapy/
+schemcache/
+*.pkl
+

@@ -17,12 +17,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `ui.py`: 定义插件的 UI 面板和操作界面
 - `codes/property.py`: 定义所有 Blender 场景属性，包括路径配置、方块切换列表、MC 版本配置
 - `codes/register.py`: 方块注册系统，将 Minecraft 方块状态映射到 Blender 对象 ID
-- `codes/importfile.py`: 导入 .schem、.nbt 文件和世界存档
+- `codes/importfile.py`: 导入 .schem、.litematic、.nbt 文件和世界存档
 - `codes/exportfile.py`: 导出为 .schem 文件或直接写入存档
-- `codes/schem.py`: 处理 schem 数据结构，创建点云网格和几何节点
+- `codes/schem.py`: 处理 schem/litematic 数据结构，创建点云网格和几何节点
 - `codes/blockstates.py`: 解析 Minecraft blockstate JSON 文件，缓存方块模型数据
 - `codes/functions/mesh_to_mc.py`: 将普通网格体转换为 Minecraft 方块，包含面优化算法
-- `codes/functions/surface_optimization.py`: 包含“合并重叠面”等网格优化算法
+- `codes/functions/surface_optimization.py`: 包含"合并重叠面"等网格优化算法
 - `codes/functions/sway_animation.py`: 实现植物和树叶的摇摆动画
 
 ### 几何节点系统
@@ -100,6 +100,7 @@ wheels/
 | amulet-nbt | NBT 数据格式 | 2.1.5 |
 | portalocker | 文件锁定 | 3.2.0 |
 | pillow | 图像处理 | 12.1.0 |
+| litemapy | Litematic 文件格式支持 | 0.9.0b0 |
 
 > **注意**: Portalocker 3.2.0 在 Windows 上默认需要 pywin32 依赖。本项目通过 Monkey Patch 绕过了此限制（使用 `msvcrt.locking()` 而非 Win32 API），详见 `doc/portalocker-pywin32-workaround.md`。
 
@@ -107,11 +108,15 @@ wheels/
 
 使用 `codes/dependency_manager.py` 提供安全导入：
 ```python
-from .codes.dependency_manager import amulet, amulet_nbt
+from .codes.dependency_manager import amulet, amulet_nbt, litemapy
 
 # 依赖缺失时返回 None，优雅降级
 if amulet is None:
     return {'CANCELLED'}
+
+# Litematic 支持
+if litemapy is not None:
+    schem = litemapy.Schematic.load(filepath)
 ```
 
 ## Blender 5.0+ API 变化
@@ -165,10 +170,16 @@ python test_version_quick.py
 # 导入 .schem 文件（在 Blender 中）
 bpy.ops.baigave.import_schem(filepath='/path/to/file.schem')
 
+# 导入 .litematic 文件（Litematica 模组格式）
+bpy.ops.baigave.import_litematic(filepath='/path/to/file.litematic')
+
 # 应用修改器并合并重叠面（优化面数）
 bpy.ops.object.modifier_apply(modifier="Schem")
 bpy.ops.baigave.merge_overlapping_faces()
 ```
+
+### 调试输出
+在 Blender 控制台（窗口 → 切换系统控制台）查看 `print()` 输出，用于调试笔刷等功能。
 
 ## 重要数据流
 
@@ -183,6 +194,12 @@ bpy.ops.baigave.merge_overlapping_faces()
 2. 应用几何节点修改器，引用 `Blocks` 集合
 3. 节点根据顶点的 `blockid` 属性实例化对应方块
 4. 应用修改器后可使用"合并重叠面"优化面数
+
+### Litematic 文件格式支持
+- **库**: 使用 litemapy (v0.9.0b0) 解析 Litematica 模组的 .litematic 文件
+- **多区域处理**: 每个 litematic 区域创建独立的 Blender 对象（命名：`文件名_区域名`）
+- **坐标转换**: 与 schem 相同，MC (x, y, z) → Blender (x, -z, y)
+- **方块状态**: 保留完整的方块状态字符串（包括属性）
 
 ### 坐标系统
 - Minecraft 坐标 (x, y, z) 转换为 Blender (x, -z, y)
@@ -280,6 +297,27 @@ if text_data:
     # id_map: {"minecraft:stone": 0, ...}
 ```
 
+### 方块笔刷开发
+
+方块笔刷使用哈希字典实现精确坐标查找（而非 KDTree 最近距离查找）：
+
+```python
+# 笔刷索引构建（invoke 方法）
+self.vertex_map = {}
+for i, v in enumerate(mesh.vertices):
+    coord = (int(v.co.x), int(v.co.y), int(v.co.z))
+    self.vertex_map[coord] = i
+
+# 射线击中后查找顶点（brush_action 方法）
+block_coord = (int(local_location.x), int(local_location.y), int(local_location.z))
+vertex_index = self.vertex_map.get(block_coord)
+```
+
+**关键设计决策**：
+- 使用 `int()` 向下取整计算方块坐标（顶点坐标都是非负整数）
+- 哈希字典提供 O(1) 查找 vs KDTree 的 O(log n)
+- 精确坐标匹配消除距离判断误差
+
 ## 相关文档
 
 - `doc/data-flow-diagrams.md`: 详细的数据流程图
@@ -298,23 +336,23 @@ MBM_workflow/
 ├── blender_manifest.toml       # Blender 5.0+ 清单文件
 ├── config.py                   # 配置持久化
 ├── CLAUDE.md                   # 本文档
-├── wheels/                     # Python 依赖包
+├── wheels/                     # Python 依赖包（包括 litemapy）
 ├── codes/
-│   ├── dependency_manager.py   # 依赖管理
+│   ├── dependency_manager.py   # 依赖管理（包括 litemapy）
 │   ├── property.py             # 场景属性定义
 │   ├── register.py             # 方块注册系统
 │   ├── blockstates.py          # 方块状态解析
 │   ├── block.py                # 方块对象创建
 │   ├── model.py                # 材质系统
-│   ├── schem.py                # 导入处理
+│   ├── schem.py                # schem/litematic 导入处理
 │   ├── exportfile.py           # 导出处理
-│   ├── importfile.py           # 导入操作符
+│   ├── importfile.py           # 导入操作符（包括 ImportLitematic）
 │   ├── create_world.py         # 存档创建
 │   ├── functions/              # 功能模块
 │   │   ├── mesh_to_mc.py       # 网格转方块
 │   │   ├── surface_optimization.py  # 面优化
 │   │   ├── sway_animation.py   # 摇摆动画
-│   │   ├── brush.py            # 笔刷工具
+│   │   ├── brush.py            # 方块笔刷（哈希字典精确坐标查找）
 │   │   ├── paint.py            # 上色工具
 │   │   └── ...
 │   ├── classification_files/   # 方块分类
