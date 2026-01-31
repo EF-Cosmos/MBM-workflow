@@ -5,8 +5,8 @@ import time
 from mathutils import Vector
 from mathutils.kdtree import KDTree
 
-class BAIGAVE_OT_PaintBlock(bpy.types.Operator):
-    bl_idname = "baigave.paint_block"
+class MBM_OT_PaintBlock(bpy.types.Operator):
+    bl_idname = "mbm.paint_block"
     bl_label = "应用顶点色到方块"
     bl_description = "根据顶点颜色，自动匹配颜色字典中最接近的方块"
     bl_options = {'REGISTER', 'UNDO'}
@@ -138,7 +138,7 @@ class BAIGAVE_OT_PaintBlock(bpy.types.Operator):
         return {'FINISHED'}
 
 def register():
-    bpy.utils.register_class(BAIGAVE_OT_PaintBlock)
+    bpy.utils.register_class(MBM_OT_PaintBlock)
 
 def unregister():
-    bpy.utils.unregister_class(BAIGAVE_OT_PaintBlock)
+    bpy.utils.unregister_class(MBM_OT_PaintBlock)

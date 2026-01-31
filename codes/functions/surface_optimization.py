@@ -27,7 +27,7 @@ def set_modifier_socket_value(modifier, socket_identifier, fallback_name, value,
 
 class MapOptimize(bpy.types.Operator):
     """优化面"""
-    bl_idname = "baigave.map_optimize"
+    bl_idname = "mbm.map_optimize"
     bl_label = "优化面"
 
     def execute(self, context):

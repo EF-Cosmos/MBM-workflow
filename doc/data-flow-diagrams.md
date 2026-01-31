@@ -1,6 +1,6 @@
 # MBM-workflow 插件数据转化图
 
-本文档详细描述 MBM-workflow (BaiGave's Tool) 插件中各种数据转化的流程。
+本文档详细描述 MBM-workflow (MBM Workflow) 插件中各种数据转化的流程。
 
 ## 目录
 

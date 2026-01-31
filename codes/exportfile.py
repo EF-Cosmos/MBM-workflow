@@ -22,7 +22,7 @@ else:
 
 
 class OpenSaves_FileManagerOperator(bpy.types.Operator):
-    bl_idname = "baigave.open_saves_folder_s"
+    bl_idname = "mbm.open_saves_folder_s"
     bl_label = "打开文件管理器"
 
     def execute(self, context):
@@ -35,7 +35,7 @@ class OpenSaves_FileManagerOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class OpenFileManagerOperator(bpy.types.Operator):
-    bl_idname = "baigave.opem_schem_folder"
+    bl_idname = "mbm.opem_schem_folder"
     bl_label = "打开文件管理器"
 
     def execute(self, context):
@@ -48,7 +48,7 @@ class OpenFileManagerOperator(bpy.types.Operator):
         return {'FINISHED'}
 class ExportSchem(bpy.types.Operator):
     """导出选定的区域为.schem文件"""
-    bl_idname = "baigave.export_schem"
+    bl_idname = "mbm.export_schem"
     bl_label = "导出.schem文件"
     vertex_dict = {} 
     block_id_name_map = {}  # 创建一个字典来存储 ID 和方块名称的映射
@@ -192,7 +192,7 @@ class ExportSchem(bpy.types.Operator):
 
 class Calculate_Size(bpy.types.Operator):
     """计算大小"""
-    bl_idname = "baigave.calculate_size"
+    bl_idname = "mbm.calculate_size"
     bl_label = "计算大小"
     vertex_dict = {} 
     def execute(self, context):
@@ -267,7 +267,7 @@ class Calculate_Size(bpy.types.Operator):
 
 class ExportToSave(bpy.types.Operator):
     """导出到存档"""
-    bl_idname = "baigave.export_to_save"
+    bl_idname = "mbm.export_to_save"
     bl_label = "导出到存档"
     vertex_dict = {} 
     block_id_name_map = {}  # 创建一个字典来存储 ID 和方块名称的映射

@@ -9,7 +9,7 @@ from ..color_dict import calculate_average_color
 
 class Read_mods_dir(bpy.types.Operator):
     """读取目录"""
-    bl_idname = "baigave.read_mods_dir"
+    bl_idname = "mbm.read_mods_dir"
     bl_label = "读取目录"
     
     def execute(self, context):
@@ -73,7 +73,7 @@ class Read_mods_dir(bpy.types.Operator):
 
 class Read_resourcepacks_dir(bpy.types.Operator):
     """读取目录"""
-    bl_idname = "baigave.read_resourcepacks_dir"
+    bl_idname = "mbm.read_resourcepacks_dir"
     bl_label = "读取目录"
     
     def execute(self, context):
@@ -136,7 +136,7 @@ class Read_resourcepacks_dir(bpy.types.Operator):
     
 class Read_versions_dir(bpy.types.Operator):
     """读取目录"""
-    bl_idname = "baigave.read_versions_dir"
+    bl_idname = "mbm.read_versions_dir"
     bl_label = "读取目录"
     
     def execute(self, context):
@@ -179,7 +179,7 @@ class Read_versions_dir(bpy.types.Operator):
     
 class Read_saves_dir(bpy.types.Operator):
     """读取目录"""
-    bl_idname = "baigave.read_saves_dir"
+    bl_idname = "mbm.read_saves_dir"
     bl_label = "读取目录"
     
     def execute(self, context):
@@ -223,7 +223,7 @@ class Read_saves_dir(bpy.types.Operator):
 
 class Read_colors_dir(bpy.types.Operator):
     """读取目录"""
-    bl_idname = "baigave.read_colors_dir"
+    bl_idname = "mbm.read_colors_dir"
     bl_label = "读取目录"
     
     def execute(self, context):
@@ -266,7 +266,7 @@ class Read_colors_dir(bpy.types.Operator):
     
 class Read_schems_dir(bpy.types.Operator):
     """读取schem目录"""
-    bl_idname = "baigave.read_schems_dir"
+    bl_idname = "mbm.read_schems_dir"
     bl_label = "读取schem目录"
     
     def execute(self, context):
@@ -312,7 +312,7 @@ class Read_schems_dir(bpy.types.Operator):
     
 # 添加一个操作类来处理上下移动和删除模组
 class MoveModItem(bpy.types.Operator):
-    bl_idname = "baigave.move_mod_item"
+    bl_idname = "mbm.move_mod_item"
     bl_label = "移动"
     direction: bpy.props.StringProperty()  # type: ignore
 
@@ -333,7 +333,7 @@ class MoveModItem(bpy.types.Operator):
 
 # 添加一个操作类来处理上下移动和删除资源包
 class MoveResourcepackItem(bpy.types.Operator):
-    bl_idname = "baigave.move_resourcepack_item"
+    bl_idname = "mbm.move_resourcepack_item"
     bl_label = "移动"
     direction: bpy.props.StringProperty()   # type: ignore
 
@@ -353,7 +353,7 @@ class MoveResourcepackItem(bpy.types.Operator):
         return {'FINISHED'}
 
 class AddModOperator(bpy.types.Operator):
-    bl_idname = "baigave.add_mod_operator"
+    bl_idname = "mbm.add_mod_operator"
     bl_label = "添加模组"
 
     # 定义一个属性来存储文件路径
@@ -387,7 +387,7 @@ class AddModOperator(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 class DeleteModOperator(bpy.types.Operator):
-    bl_idname = "baigave.delete_mod_operator"
+    bl_idname = "mbm.delete_mod_operator"
     bl_label = "删除模组"
 
     def execute(self, context):
@@ -431,7 +431,7 @@ class DeleteModOperator(bpy.types.Operator):
         return {'CANCELLED'}
 
 class AddResourcepackOperator(bpy.types.Operator):
-    bl_idname = "baigave.add_resourcepack_operator"
+    bl_idname = "mbm.add_resourcepack_operator"
     bl_label = "添加模组"
 
     # 定义一个属性来存储文件路径
@@ -465,7 +465,7 @@ class AddResourcepackOperator(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 class DeleteResourcepackOperator(bpy.types.Operator):
-    bl_idname = "baigave.delete_resourcepack_operator"
+    bl_idname = "mbm.delete_resourcepack_operator"
     bl_label = "删除模组"
 
     def execute(self, context):
@@ -507,7 +507,7 @@ class DeleteResourcepackOperator(bpy.types.Operator):
 
 
 class AddColorToBlockOperator(bpy.types.Operator):
-    bl_idname = "baigave.add_color_to_block_operator"
+    bl_idname = "mbm.add_color_to_block_operator"
     bl_label = "添加方块"
 
     # 定义一个属性来存储文件路径
@@ -543,7 +543,7 @@ class AddColorToBlockOperator(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 class DeleteColorToBlockOperator(bpy.types.Operator):
-    bl_idname = "baigave.delete_color_to_block_operator"
+    bl_idname = "mbm.delete_color_to_block_operator"
     bl_label = "删除方块"
 
     def execute(self, context):
@@ -560,7 +560,7 @@ class DeleteColorToBlockOperator(bpy.types.Operator):
 
 
 class GetAverageColor(bpy.types.Operator):
-    bl_idname = "baigave.get_average_color"
+    bl_idname = "mbm.get_average_color"
     bl_label = "获得图片平均颜色"
 
     # 定义一个属性来存储文件路径

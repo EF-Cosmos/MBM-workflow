@@ -722,7 +722,7 @@ def unzip_resourcepacks_files():
 
         
 class UnzipModOperator(bpy.types.Operator):
-    bl_idname = "baigave.unzip_mods_operator"
+    bl_idname = "mbm.unzip_mods_operator"
     bl_label = "加载模组包"
 
     def execute(self, context):
@@ -739,7 +739,7 @@ class UnzipModOperator(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 class UnzipResourcepacksOperator(bpy.types.Operator):
-    bl_idname = "baigave.unzip_resourcepacks_operator"
+    bl_idname = "mbm.unzip_resourcepacks_operator"
     bl_label = "加载模组包"
 
     def execute(self, context):

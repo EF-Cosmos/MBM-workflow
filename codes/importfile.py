@@ -22,7 +22,7 @@ amulet_nbt = dependency_manager.amulet_nbt
 class ImportBlock(bpy.types.Operator):
     """导入方块"""
     bl_label = "导入方块"
-    bl_idname = 'baigave.import_block'
+    bl_idname = 'mbm.import_block'
 
     # 定义一个属性来存储文件路径
     filepath: bpy.props.StringProperty(subtype="FILE_PATH") # type: ignore
@@ -94,7 +94,7 @@ class ImportBlock(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 class ImportNBT(bpy.types.Operator):
-    bl_idname = "baigave.import_nbt"
+    bl_idname = "mbm.import_nbt"
     bl_label = "导入.nbt文件"
     
     # 定义一个属性来存储文件路径
@@ -157,7 +157,7 @@ class ImportNBT(bpy.types.Operator):
 
 # 定义一个导入.schem文件的操作类
 class ImportSchem(bpy.types.Operator):
-    bl_idname = "baigave.import_schem"
+    bl_idname = "mbm.import_schem"
     bl_label = "导入.schem文件"
     
     # 定义一个属性来存储文件路径
@@ -256,7 +256,7 @@ class ImportSchem(bpy.types.Operator):
 
 class ReloadBlocks(bpy.types.Operator):
     """重载失效或空的方块缓存，使插件重新尝试读取模型"""
-    bl_idname = "baigave.reload_blocks"
+    bl_idname = "mbm.reload_blocks"
     bl_label = "重载失效方块"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -333,7 +333,7 @@ class ReloadBlocks(bpy.types.Operator):
 
 # 导入.litematic文件的操作类
 class ImportLitematic(bpy.types.Operator):
-    bl_idname = "baigave.import_litematic"
+    bl_idname = "mbm.import_litematic"
     bl_label = "导入.litematic文件"
 
     filepath: bpy.props.StringProperty(subtype="FILE_PATH") # type: ignore
@@ -604,13 +604,13 @@ class ImportLitematic(bpy.types.Operator):
 
 #多进程结束后导入模型
 class MultiprocessImport(bpy.types.Operator):
-    bl_idname = "baigave.multiprocess_import"
+    bl_idname = "mbm.multiprocess_import"
     bl_label = "导入.schem文件"
     filepath: bpy.props.StringProperty(subtype="FILE_PATH") # type: ignore
     filter_glob: bpy.props.StringProperty(default="*.schem", options={'HIDDEN'}) # type: ignore
 
     def execute(self, context):
-        VarCachePath = bpy.utils.script_path_user() + "/addons/BaiGave_Plugin/schemcache/var.pkl"
+        VarCachePath = bpy.utils.script_path_user() + "/addons/MBM_Workflow/schemcache/var.pkl"
         with open(VarCachePath, 'rb') as file:
             schempath,chunks,name,x_list,processnum = pickle.load(file)
         level = amulet.load_level(schempath)
@@ -635,13 +635,13 @@ class MultiprocessImport(bpy.types.Operator):
 
 #每个进程分别处理一个区块
 class MultiprocessSchem(bpy.types.Operator):
-    bl_idname = "baigave.import_schem_mp"
+    bl_idname = "mbm.import_schem_mp"
     bl_label = "导入.schem文件"
     filepath: bpy.props.StringProperty(subtype="FILE_PATH") # type: ignore
     filter_glob: bpy.props.StringProperty(default="*.schem", options={'HIDDEN'}) # type: ignore
 
     def execute(self, context):
-        VarCachePath = bpy.utils.script_path_user() + "/addons/BaiGave_Plugin/schemcache/var.pkl"
+        VarCachePath = bpy.utils.script_path_user() + "/addons/MBM_Workflow/schemcache/var.pkl"
         with open(VarCachePath, 'rb') as file:
             schempath,chunks,name,x_list,processnum = pickle.load(file)
         level = amulet.load_level(schempath)
@@ -654,18 +654,18 @@ class MultiprocessSchem(bpy.types.Operator):
     
 
 class ImportSchemLiquid(bpy.types.Operator):
-    bl_idname = "baigave.import_schem_liquid"
+    bl_idname = "mbm.import_schem_liquid"
     bl_label = "导入.schem文件"
     filepath: bpy.props.StringProperty(subtype="FILE_PATH") # type: ignore
     filter_glob: bpy.props.StringProperty(default="*.schem", options={'HIDDEN'}) # type: ignore
 
     def execute(self, context):
-        VarCachePath = bpy.utils.script_path_user() + "/addons/BaiGave_Plugin/schemcache/var.pkl"
+        VarCachePath = bpy.utils.script_path_user() + "/addons/MBM_Workflow/schemcache/var.pkl"
         with open(VarCachePath, 'rb') as file:
             chunks,mp_chunks,schempath,interval,processnum = pickle.load(file)
         level = amulet.load_level(schempath)
         schem_liquid(level,chunks)
-        ModelCachePath = bpy.utils.script_path_user() + "/addons/BaiGave_Plugin/schemcache/liquid.blend"
+        ModelCachePath = bpy.utils.script_path_user() + "/addons/MBM_Workflow/schemcache/liquid.blend"
         bpy.ops.wm.save_as_mainfile(filepath=ModelCachePath)
         return {'FINISHED'}
     def invoke(self, context, event):
@@ -675,7 +675,7 @@ class ImportSchemLiquid(bpy.types.Operator):
 
 class Importjson(bpy.types.Operator):
     """导入选定的json文件"""
-    bl_idname = "baigave.import_json"
+    bl_idname = "mbm.import_json"
     bl_label = "导入json文件"
 
     filepath: bpy.props.StringProperty(subtype='FILE_PATH') # type: ignore
@@ -701,7 +701,7 @@ class Importjson(bpy.types.Operator):
 
 
 class SNA_AddonPreferences_F35F8(bpy.types.AddonPreferences):
-    bl_idname = 'BaiGave_Plugin'
+    bl_idname = 'MBM_Workflow'
     sna_processnumber: bpy.props.IntProperty(name='ProcessNumber', description='最大进程数，同时处理这么多个区块', default=6, subtype='NONE', min=1, max=64) # type: ignore
     sna_intervaltime: bpy.props.FloatProperty(name='IntervalTime', description='处理完每个区块，间隔一段时间再导入进来。较小值减少总时间；较大值能避免blender卡住，边导边用', default=1.0, subtype='NONE', unit='NONE', min=0.0, max=10.0, step=3, precision=1) # type: ignore
     sna_minsize: bpy.props.IntProperty(name='MinSize', description='超过这个数就会启用多进程分区块导入', default=1000000, subtype='NONE', min=1000, max=99999999) # type: ignore
@@ -726,9 +726,9 @@ class SNA_OT_My_Generic_Operator_A38B8(bpy.types.Operator):
     def execute(self, context):
         Variable = None
         Variable=int(os.cpu_count()/2)
-        bpy.context.preferences.addons['BaiGave_Plugin'].preferences.sna_processnumber = Variable
-        bpy.context.preferences.addons['BaiGave_Plugin'].preferences.sna_intervaltime = 1
-        bpy.context.preferences.addons['BaiGave_Plugin'].preferences.sna_minsize = 1000000
+        bpy.context.preferences.addons['MBM_Workflow'].preferences.sna_processnumber = Variable
+        bpy.context.preferences.addons['MBM_Workflow'].preferences.sna_intervaltime = 1
+        bpy.context.preferences.addons['MBM_Workflow'].preferences.sna_minsize = 1000000
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -739,7 +739,7 @@ class SNA_OT_My_Generic_Operator_A38B8(bpy.types.Operator):
 # class SelectArea(bpy.types.Operator):
 #     """选择区域（性能有问题）"""
 #     bl_label = "选择区域"
-#     bl_idname = 'baigave.select'
+#     bl_idname = 'mbm.select'
     
 #     def execute(self, context):
 #         # 获取当前场景的名称
@@ -770,7 +770,7 @@ class SNA_OT_My_Generic_Operator_A38B8(bpy.types.Operator):
 class ImportWorld(bpy.types.Operator):
     """导入世界(性能有问题)"""
     bl_label = "导入世界"
-    bl_idname = 'baigave.import_world'
+    bl_idname = 'mbm.import_world'
 
     current_chunk_index = 0  # 当前处理的区块索引
 

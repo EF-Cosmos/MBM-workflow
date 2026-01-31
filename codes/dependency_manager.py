@@ -186,14 +186,14 @@ class DependencyManager:
 
         # 动态修改 Operator 的属性以显示不同的消息
         # 注意：这在多线程或频繁调用时可能不安全，但用于模态弹窗通常可以接受
-        BAIGAVE_OT_DependencyError.bl_label = title
-        BAIGAVE_OT_DependencyError.message = message
-        BAIGAVE_OT_DependencyError.draw_func = draw
+        MBM_OT_DependencyError.bl_label = title
+        MBM_OT_DependencyError.message = message
+        MBM_OT_DependencyError.draw_func = draw
         
         # 强制更新类注册以应用新标签（可选，但通常 invoke 会处理）
         try:
-            bpy.utils.unregister_class(BAIGAVE_OT_DependencyError)
-            bpy.utils.register_class(BAIGAVE_OT_DependencyError)
+            bpy.utils.unregister_class(MBM_OT_DependencyError)
+            bpy.utils.register_class(MBM_OT_DependencyError)
         except:
             pass
             
@@ -204,7 +204,7 @@ class DependencyManager:
             print(f"Popup error: {e}")
 
 
-class BAIGAVE_OT_DependencyError(bpy.types.Operator):
+class MBM_OT_DependencyError(bpy.types.Operator):
     bl_idname = "wm.dependency_error"
     bl_label = "Dependency Error"
     bl_description = "Show dependency error"
@@ -230,13 +230,13 @@ class BAIGAVE_OT_DependencyError(bpy.types.Operator):
 
 def register():
     try:
-        bpy.utils.register_class(BAIGAVE_OT_DependencyError)
+        bpy.utils.register_class(MBM_OT_DependencyError)
     except ValueError:
         pass
 
 def unregister():
     try:
-        bpy.utils.unregister_class(BAIGAVE_OT_DependencyError)
+        bpy.utils.unregister_class(MBM_OT_DependencyError)
     except:
         pass
 

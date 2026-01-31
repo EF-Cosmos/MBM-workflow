@@ -1,8 +1,8 @@
-# MBM Workflow / BaiGave's Tool
+# MBM Workflow / MBM Workflow
 
 一个用于在 Blender 内直接导入、编辑和导出 Minecraft 地图的插件。与 Mineways 或 jmc2obj 等工具不同，本插件导入的是带有方块属性的点云数据，通过几何节点实例化方块模型，支持非破坏性编辑。
 
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://github.com/BaiGave/BaiGave_Plugin/blob/main/LICENSE)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://github.com/EF-Cosmos/MBM-workflow/blob/main/LICENSE)
 [![Blender](https://img.shields.io/badge/Blender-5.0+-orange.svg)](https://www.blender.org/download/)
 
 ## 功能概览
@@ -44,7 +44,7 @@
 
 2. **导入文件**
    ```
-   Blender → 侧边栏 (N) → BaiGave's Tool → 导入地图
+   Blender → 侧边栏 (N) → MBM Workflow → 导入地图
    ```
 
 3. **导入模式选择**
@@ -180,7 +180,7 @@ mc_version_patch: 9
 
 ### 安装步骤
 
-1. 下载 [Release](https://github.com/BaiGave/BaiGave_Plugin/releases) 文件
+1. 下载 [Release](https://github.com/EF-Cosmos/MBM-workflow/releases) 文件
 2. 在 Blender 中：`编辑 → 偏好设置 → 插件 → 安装`
 3. 选择下载的 `.zip` 文件
 4. 启用插件
@@ -252,7 +252,7 @@ python test_version_quick.py
 
 | 角色 | 贡献者 |
 |------|--------|
-| 主要开发 | BaiGave (bilibili) |
+| 主要开发 | EF_Cosmos (GitHub) |
 | 几何节点 | 火锅料理、抛瓦尔第、暗影苦力怕、Piggestpig、荒芜新谷 |
 | 着色器 | WangXinRui |
 | 多进程支持 | Piggestpig / 冬猫夏羊工作室 |
@@ -262,7 +262,7 @@ python test_version_quick.py
 
 ## 许可证
 
-本项目采用 [AGPL-3.0](https://github.com/BaiGave/BaiGave_Plugin/blob/main/LICENSE) 许可证。
+本项目采用 [AGPL-3.0](https://github.com/EF-Cosmos/MBM-workflow/blob/main/LICENSE) 许可证。
 
 ---
 
@@ -270,7 +270,7 @@ python test_version_quick.py
 
 - **QQ 群**: 878232347（Bug 反馈与交流）
 - **Bilibili**: [白给的个人空间](https://space.bilibili.com/3461563635731405)
-- **GitHub Issues**: [报告问题](https://github.com/BaiGave/BaiGave_Plugin/issues)
+- **GitHub Issues**: [报告问题](https://github.com/EF-Cosmos/MBM-workflow/issues)
 
 ---
 

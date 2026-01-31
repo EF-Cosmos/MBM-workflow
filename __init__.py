@@ -19,11 +19,11 @@ if addon_dir not in sys.path:
 
 bl_info={
     "name":"MBM_workflow",
-    "author":"BaiGave",
+    "author":"EF_Cosmos",
     "version":(1, 0),
     "blender":(5, 0, 0),
     "location":"View3d > Tool",
-    "warning":"如果有任何问题请联系白给~我的bilbil账号:BaiGave",
+    "warning":"如果有任何问题请联系我~我的GitHub:EF-Cosmos",
     "category":"MBM_workflow"
 }
 

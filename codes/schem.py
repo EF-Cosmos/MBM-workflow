@@ -118,7 +118,7 @@ def schem(level, chunks, cached, filename="schem", position=(0, 0, 0)):
                             pass
         id_map=register_blocks(list(set(ids)))
     else:
-        IDCachePath = bpy.utils.script_path_user() + "/addons/BaiGave_Plugin/schemcache/id_map.pkl"
+        IDCachePath = bpy.utils.script_path_user() + "/addons/MBM_Workflow/schemcache/id_map.pkl"
         with open(IDCachePath, 'rb') as f:
             vertices,ids,id_map = pickle.load(f)
         id_map=register_blocks(id_map)
@@ -196,7 +196,7 @@ def schem_chunk(level, chunks, x_list, filename="schem", position=(0, 0, 0)):
 
     id_map=register_blocks(list(set(ids)))
 
-    IDCachePath = bpy.utils.script_path_user() + "/addons/BaiGave_Plugin/schemcache/chunk{}.pkl".format(current_frame)
+    IDCachePath = bpy.utils.script_path_user() + "/addons/MBM_Workflow/schemcache/chunk{}.pkl".format(current_frame)
     with open(IDCachePath, 'wb') as f:
         pickle.dump((vertices,ids,id_map), f)
     

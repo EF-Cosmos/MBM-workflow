@@ -38,7 +38,7 @@ class BlockPanel(bpy.types.Panel):
         row.label(text = "方块",icon='SNAP_VOLUME')
 
         row = layout.row()
-        row.operator("baigave.import_json", text="导入.json文件")
+        row.operator("mbm.import_json", text="导入.json文件")
 #导入面板     
 class ImportPanel(bpy.types.Panel):
     bl_label ="导入"
@@ -58,14 +58,14 @@ class ImportPanel(bpy.types.Panel):
         # 创建一个框
         box = layout.box()
         box.label(text="导入.schem文件")
-        box.operator("baigave.schem_import_panel", text="导入.schem文件")
+        box.operator("mbm.schem_import_panel", text="导入.schem文件")
         layout.split()
 
         # Litematic 导入
         if litemapy is not None:
             box = layout.box()
             box.label(text="导入.litematic文件")
-            box.operator("baigave.import_litematic", text="导入.litematic文件")
+            box.operator("mbm.import_litematic", text="导入.litematic文件")
         else:
             box = layout.box()
             box.label(text="导入.litematic文件 (依赖缺失)")
@@ -73,13 +73,13 @@ class ImportPanel(bpy.types.Panel):
 
         box = layout.box()
         box.label(text="导入方块")
-        box.operator("baigave.import_block", text="导入方块")
-        box.operator("baigave.reload_blocks", text="重载失效方块", icon="FILE_REFRESH")
+        box.operator("mbm.import_block", text="导入方块")
+        box.operator("mbm.reload_blocks", text="重载失效方块", icon="FILE_REFRESH")
 
         box = layout.box()
 
         box.label(text="导入.nbt文件")
-        box.operator("baigave.import_nbt", text="导入.nbt文件")
+        box.operator("mbm.import_nbt", text="导入.nbt文件")
 
         box = layout.box()
         row=box.row()
@@ -94,13 +94,13 @@ class ImportPanel(bpy.types.Panel):
         row = box.row()
         row.label(text="最大坐标")
         row.prop(context.scene, "max_coordinates", text="")
-        col.operator("baigave.import_world", text="导入世界")
+        col.operator("mbm.import_world", text="导入世界")
 
         row = layout.row()
         row.operator("object.add_sway_animation", text="植物摇摆")
 
         row = layout.row()
-        row.operator("baigave.map_optimize", text="执行优化")
+        row.operator("mbm.map_optimize", text="执行优化")
 
         # 添加布尔属性的选项
         row = layout.row()
@@ -109,7 +109,7 @@ class ImportPanel(bpy.types.Panel):
         
         box = layout.box()
         row=box.row()
-        row.operator("baigave.merge_overlapping_faces", text="合并重叠面")
+        row.operator("mbm.merge_overlapping_faces", text="合并重叠面")
 
 #导出面板     
 class ExportPanel(bpy.types.Panel):
@@ -125,14 +125,14 @@ class ExportPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         row = layout.row()
-        row.operator("baigave.export_schem", text="导出结构")
+        row.operator("mbm.export_schem", text="导出结构")
         box = layout.box()
         box.prop(scene, "save_list",text="选择世界")
         box.label( text="结构位置：("+str(scene.schem_size[0])+"," +str(scene.schem_size[1])+","+ str(scene.schem_size[2])+")")
         box.label(text="长:"+str(scene.schem_size[0])+"宽:" +str(scene.schem_size[1])+"高:"+ str(scene.schem_size[2])+" (blender坐标系)")
 
-        box.operator("baigave.calculate_size",text="计算结构大小")
-        box.operator("baigave.export_to_save",text="导出结构到存档")
+        box.operator("mbm.calculate_size",text="计算结构大小")
+        box.operator("mbm.export_to_save",text="导出结构到存档")
 #创建存档面板
 class CreateLevel(bpy.types.Panel):
     bl_label ="创建存档"
@@ -172,7 +172,7 @@ class CreateLevel(bpy.types.Panel):
         row = box.row()
         row.prop(scene, "seed", text="种子")
         row = layout.row()
-        row.operator("baigave.create_world", text="创建存档")
+        row.operator("mbm.create_world", text="创建存档")
         
 
 
@@ -193,22 +193,22 @@ class EditPanel(bpy.types.Panel):
         row = layout.row()
         row.prop(scene, "color_list",text="对照表")
         row = layout.row()
-        row.operator("baigave.color_to_block_panel", text="制作颜色-方块字典")
+        row.operator("mbm.color_to_block_panel", text="制作颜色-方块字典")
         row = layout.row()
-        row.operator("baigave.switch_blocks_panel", text="替换方块")
+        row.operator("mbm.switch_blocks_panel", text="替换方块")
         row = layout.row()
         row.label(text="可视化编辑：")
         row = layout.row()
         row.prop(scene.my_properties, "brush_block_enum", text="")
-        row.operator("baigave.block_brush", text="启动方块笔刷", icon='BRUSH_DATA')
+        row.operator("mbm.block_brush", text="启动方块笔刷", icon='BRUSH_DATA')
         row = layout.row()
-        row.operator("baigave.get_average_color", text="得到图片平均颜色值")
+        row.operator("mbm.get_average_color", text="得到图片平均颜色值")
         row = layout.row()
-        row.operator("baigave.objtoblocks", text="生成点云(转楼梯/台阶方块所需)")
+        row.operator("mbm.objtoblocks", text="生成点云(转楼梯/台阶方块所需)")
         row = layout.row()
-        row.operator("baigave.blockblender", text="转换网格体(方块)")
+        row.operator("mbm.blockblender", text="转换网格体(方块)")
         row = layout.row()
-        row.operator("baigave.paint_block", text="应用顶点色到方块")
+        row.operator("mbm.paint_block", text="应用顶点色到方块")
 
         
 #创建存档面板
@@ -425,12 +425,12 @@ class ResourcepacksPanel(bpy.types.Panel):
         
         col = row.column(align=True)
          # 上下移动按钮
-        col.operator("baigave.move_resourcepack_item", text="", icon='TRIA_UP').direction = 'UP'
-        col.operator("baigave.move_resourcepack_item", text="", icon='TRIA_DOWN').direction = 'DOWN'  
-        col.operator("baigave.add_resourcepack_operator",text="", icon='ADD')
-        col.operator("baigave.delete_resourcepack_operator",text="", icon='REMOVE')
+        col.operator("mbm.move_resourcepack_item", text="", icon='TRIA_UP').direction = 'UP'
+        col.operator("mbm.move_resourcepack_item", text="", icon='TRIA_DOWN').direction = 'DOWN'  
+        col.operator("mbm.add_resourcepack_operator",text="", icon='ADD')
+        col.operator("mbm.delete_resourcepack_operator",text="", icon='REMOVE')
         # 添加打印选中项目的按钮
-        layout.operator("baigave.unzip_resourcepacks_operator", text="刷新")
+        layout.operator("mbm.unzip_resourcepacks_operator", text="刷新")
 
 #模组界面
 class ModPanel(bpy.types.Panel):
@@ -458,12 +458,12 @@ class ModPanel(bpy.types.Panel):
         row.template_list("ModList", "", my_properties, "mod_list", my_properties, "mod_list_index")
         col = row.column(align=True)
          # 上下移动按钮
-        col.operator("baigave.move_mod_item", text="", icon='TRIA_UP').direction = 'UP'
-        col.operator("baigave.move_mod_item", text="", icon='TRIA_DOWN').direction = 'DOWN'    
-        col.operator("baigave.add_mod_operator",text="", icon='ADD')
-        col.operator("baigave.delete_mod_operator",text="", icon='REMOVE')
+        col.operator("mbm.move_mod_item", text="", icon='TRIA_UP').direction = 'UP'
+        col.operator("mbm.move_mod_item", text="", icon='TRIA_DOWN').direction = 'DOWN'    
+        col.operator("mbm.add_mod_operator",text="", icon='ADD')
+        col.operator("mbm.delete_mod_operator",text="", icon='REMOVE')
         # 添加一个按钮
-        layout.operator("baigave.unzip_mods_operator", text="刷新")
+        layout.operator("mbm.unzip_mods_operator", text="刷新")
 
 
 # -----------------------------------------------------------------------------
@@ -520,7 +520,7 @@ class SwitchBlockList(bpy.types.UIList):
             split = row.split(factor=0.65)
             split.row().prop(item, "target_block_enum", text="")
 class SchemImportPanel(bpy.types.Operator):
-    bl_idname = "baigave.schem_import_panel"
+    bl_idname = "mbm.schem_import_panel"
     bl_label = "导入Schem文件二级界面"
 
     def execute(self, context):
@@ -543,10 +543,10 @@ class SchemImportPanel(bpy.types.Operator):
             row = layout.row()    
             row.prop(scene, "separate_vertices_by_chunk",text="是否按照区块分离？")
         row = layout.row()
-        row.operator("baigave.import_schem", text="导入.schem文件")
+        row.operator("mbm.import_schem", text="导入.schem文件")
 
 class ColorToBlockPanel(bpy.types.Operator):
-    bl_idname = "baigave.color_to_block_panel"
+    bl_idname = "mbm.color_to_block_panel"
     bl_label = "颜色方块对照表制作界面"
 
     def execute(self, context):
@@ -566,24 +566,24 @@ class ColorToBlockPanel(bpy.types.Operator):
         
         row.label(text="生成方块颜色对照表：")
         row.emboss="NONE_OR_STATUS"
-        row.operator("baigave.open_color_dict",text="加载已有对照表")
+        row.operator("mbm.open_color_dict",text="加载已有对照表")
         row = layout.row()
-        row.operator("baigave.clear_color_dict",text="清除当前对照表")
+        row.operator("mbm.clear_color_dict",text="清除当前对照表")
         row = layout.row()
         row.template_list("ColorToBlockList", "", my_properties, "color_to_block_list", my_properties, "color_to_block_list_index")
         col = row.column()
-        col.operator("baigave.add_color_to_block_operator",text="", icon='ADD')
-        col.operator("baigave.delete_color_to_block_operator",text="", icon='REMOVE')
+        col.operator("mbm.add_color_to_block_operator",text="", icon='ADD')
+        col.operator("mbm.delete_color_to_block_operator",text="", icon='REMOVE')
         row = layout.row()
         if my_properties.color_file_path=="":
-            row.operator("baigave.make_color_dict", text="新建")
+            row.operator("mbm.make_color_dict", text="新建")
         else:
-            row.operator("baigave.edit_color_dict", text="编辑")
+            row.operator("mbm.edit_color_dict", text="编辑")
         row = layout.row()
 
 
 class SwitchBlocks(bpy.types.Operator):
-    bl_idname = "baigave.switch_blocks_panel"
+    bl_idname = "mbm.switch_blocks_panel"
     bl_label = "替换方块界面"
 
     def execute(self, context):
@@ -692,11 +692,11 @@ class SwitchBlocks(bpy.types.Operator):
         
         row.label(text="方块切换界面：")
         row.emboss="NONE_OR_STATUS"
-        row.operator("baigave.open_color_dict",text="刷新")
+        row.operator("mbm.open_color_dict",text="刷新")
         row = layout.row()
         row.template_list("SwitchBlockList", "", my_properties, "switch_block_list", my_properties, "switch_block_list_index")
         row = layout.row()
-        #row.operator("baigave.make_color_dict", text="准备（第一次需要按一下）")
+        #row.operator("mbm.make_color_dict", text="准备（第一次需要按一下）")
         #row = layout.row()
 classes=[SchemImportPanel,ColorToBlockPanel,SwitchBlocks,ResourcepackList,ColorToBlockList,SwitchBlockList,ModList,MainPanel,BlockPanel,ImportPanel,ExportPanel,EditPanel,CreateLevel,ModPanel,ResourcepacksPanel,MoreLevelSettings,GameRules,
          Ability]

@@ -7,7 +7,7 @@ from .unuse.level import create_level
 
 
 class OpenFileManagerOperator(bpy.types.Operator):
-    bl_idname = "baigave.open_saves_folder"
+    bl_idname = "mbm.open_saves_folder"
     bl_label = "打开文件管理器"
 
     def execute(self, context):
@@ -20,7 +20,7 @@ class OpenFileManagerOperator(bpy.types.Operator):
         return {'FINISHED'}
 class CreateWorld(bpy.types.Operator):
     """创建世界"""
-    bl_idname = "baigave.create_world"
+    bl_idname = "mbm.create_world"
     bl_label = "创建存档"
 
     # 定义操作的执行函数

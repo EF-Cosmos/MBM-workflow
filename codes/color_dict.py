@@ -406,7 +406,7 @@ def OpenCDict(filename):
 
 
 class OpenColorDict(bpy.types.Operator):
-    bl_idname = "baigave.open_color_dict"
+    bl_idname = "mbm.open_color_dict"
     bl_label = "打开对照表"
 
     filepath: bpy.props.StringProperty(subtype="FILE_PATH") # type: ignore # type: ignore
@@ -436,7 +436,7 @@ class OpenColorDict(bpy.types.Operator):
         return {'RUNNING_MODAL'}
     
 class ClearColorDict(bpy.types.Operator):
-    bl_idname = "baigave.clear_color_dict"
+    bl_idname = "mbm.clear_color_dict"
     bl_label = "清除对照表"
 
 
@@ -451,7 +451,7 @@ class ClearColorDict(bpy.types.Operator):
 
     
 class MakeColorDict(bpy.types.Operator):
-    bl_idname = "baigave.make_color_dict"
+    bl_idname = "mbm.make_color_dict"
     bl_label = "新建对照表"
 
     n: bpy.props.StringProperty(name="文件名", default="") # type: ignore
@@ -487,7 +487,7 @@ class MakeColorDict(bpy.types.Operator):
         layout.prop(self, "n")
 
 class EditColorDict(bpy.types.Operator):
-    bl_idname = "baigave.edit_color_dict"
+    bl_idname = "mbm.edit_color_dict"
     bl_label = "编辑对照表"
 
     def execute(self, context):

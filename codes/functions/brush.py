@@ -3,8 +3,8 @@ import bmesh
 from bpy.props import EnumProperty
 import bpy_extras.view3d_utils as view3d_utils
 
-class BAIGAVE_OT_BlockBrush(bpy.types.Operator):
-    bl_idname = "baigave.block_brush"
+class MBM_OT_BlockBrush(bpy.types.Operator):
+    bl_idname = "mbm.block_brush"
     bl_label = "方块笔刷"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -140,8 +140,8 @@ class BAIGAVE_OT_BlockBrush(bpy.types.Operator):
 
 
 def register():
-    bpy.utils.register_class(BAIGAVE_OT_BlockBrush)
+    bpy.utils.register_class(MBM_OT_BlockBrush)
 
 
 def unregister():
-    bpy.utils.unregister_class(BAIGAVE_OT_BlockBrush)
+    bpy.utils.unregister_class(MBM_OT_BlockBrush)

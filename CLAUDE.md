@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-这是一个 Blender 插件（BaiGave's Tool / MBM-workflow），用于在 Blender 内直接导入、编辑和导出 Minecraft 地图数据。与 Mineways 或 jmc2obj 等工具不同，该插件导入的是带有 blockid 和 biome 属性的点云数据，通过几何节点实例化方块模型，支持非破坏性编辑。
+这是一个 Blender 插件（MBM Workflow / MBM-workflow），用于在 Blender 内直接导入、编辑和导出 Minecraft 地图数据。与 Mineways 或 jmc2obj 等工具不同，该插件导入的是带有 blockid 和 biome 属性的点云数据，通过几何节点实例化方块模型，支持非破坏性编辑。
 
 ## 核心架构
 
@@ -168,14 +168,14 @@ python test_version_quick.py
 ### 测试导入
 ```python
 # 导入 .schem 文件（在 Blender 中）
-bpy.ops.baigave.import_schem(filepath='/path/to/file.schem')
+bpy.ops.mbm.import_schem(filepath='/path/to/file.schem')
 
 # 导入 .litematic 文件（Litematica 模组格式）
-bpy.ops.baigave.import_litematic(filepath='/path/to/file.litematic')
+bpy.ops.mbm.import_litematic(filepath='/path/to/file.litematic')
 
 # 应用修改器并合并重叠面（优化面数）
 bpy.ops.object.modifier_apply(modifier="Schem")
-bpy.ops.baigave.merge_overlapping_faces()
+bpy.ops.mbm.merge_overlapping_faces()
 ```
 
 ### 调试输出

@@ -258,7 +258,7 @@ def create_node(color_dict, node_groups, node_type, next_id, id_map,group_name="
  
 #将普通网格体转换成mc
 class ObjToBlocks(bpy.types.Operator):
-    bl_idname = "baigave.objtoblocks"
+    bl_idname = "mbm.objtoblocks"
     bl_label = "ObjToBlocks"
 
     def execute(self, context):
@@ -459,7 +459,7 @@ class ObjToBlocks(bpy.types.Operator):
 
 
 class BlockBlender(bpy.types.Operator):
-    bl_idname = "baigave.blockblender"
+    bl_idname = "mbm.blockblender"
     bl_label = "BlockBlender"
 
     def execute(self, context):
@@ -631,7 +631,7 @@ class BlockBlender(bpy.types.Operator):
 
 
 class MergeOverlappingFaces(bpy.types.Operator):
-    bl_idname = "baigave.merge_overlapping_faces"
+    bl_idname = "mbm.merge_overlapping_faces"
     bl_label = "合并重叠面"
 
     @classmethod
