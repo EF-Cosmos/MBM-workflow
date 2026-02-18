@@ -195,35 +195,161 @@ self.target_obj.data.update_tag()  # 触发几何节点重新计算
 
 ## 常见问题
 
-### Q: 为什么笔刷不能在应用了几何节点修改器的对象上使用�?
+### Q: 为什么笔刷不能在应用了几何节点修改器的对象上使用？
 
-**A**: 应用修改器后，原始点云数据被转换为实际的网格几何体，`blockid` 属性数据不再存在或无法访问。笔刷需要直接操作点云属性才能工作�?
+**A**: 应用修改器后，原始点云数据被转换为实际的网格几何体，`blockid` 属性数据不再存在或无法访问。笔刷需要直接操作点云属性才能工作。
 
 ### Q: 笔刷修改后方块没有立即更新？
 
-**A**: 确保�?
-1. 几何节点修改器处于启用状态（眼睛图标�?
-2. 对象�?`blockid` 属性域�?`POINT`
-3. 使用�?`update_tag()` 而非 `update()`
+**A**: 确保：
+1. 几何节点修改器处于启用状态（眼睛图标）
+2. 对象的 `blockid` 属性域是 `POINT`
+3. 使用了 `update_tag()` 而非 `update()`
 
-### Q: 出现"索引超出范围"错误�?
+### Q: 出现"索引超出范围"错误？
 
 **A**: 检查：
 1. 对象是否应用了几何节点修改器
-2. `blockid` 属性数据是否为空（�?Blender 属性面板中查看对象属�?�?属性）
-3. KDTree 是否基于正确的顶点数据构�?
+2. `blockid` 属性数据是否为空（在 Blender 属性面板中查看对象属性→属性）
+3. KDTree 是否基于正确的顶点数据构建
+
+### Q: 点击方块边界时选中了错误的方块？
+
+**A**: 这是边界判定问题，已在 2026-02-01 修复。详见下方"问题 3"。
 
 ---
 
 ## 相关文件
 
 - `codes/functions/brush.py` - 方块笔刷主逻辑
-- `codes/schem.py` - 点云创建和属性设�?
-- `codes/functions/paint.py` - 使用 `foreach_get/set` 的参考实�?
-- `codes/exportfile.py:85` - 属性检查参考实�?
+- `codes/schem.py` - 点云创建和属性设置
+- `codes/functions/paint.py` - 使用 `foreach_get/set` 的参考实现
+- `codes/exportfile.py:85` - 属性检查参考实现
 
 ---
 
 ## 修复日期
 
-2025-01-15
+- 2025-01-15 - 初始修复（TypeError、IndexError）
+- 2026-02-01 - 边界判定问题修复
+
+---
+
+## 问题 3: 边界判定错误 - 点击方块边界时选中错误方块
+
+**现象**: 当点击方块的边界面（如两个方块的交界处）时，笔刷可能选中了相邻的方块而不是预期的方块。
+
+**根本原因**:
+
+1. **边界坐标的歧义性**: 
+   - 点云顶点 `(x, y, z)` 代表方块的原点角
+   - 方块占据空间 `[x, x+1) × [y, y+1) × [z, z+1)`
+   - 当射线击中点正好在边界（如 `x=3.0`）时，无法确定属于坐标 2 还是 3 的方块
+
+2. **`int()` 对负数处理不正确**:
+   - `int(-0.5) = 0`（向零取整）
+   - 正确应该是 `math.floor(-0.5) = -1`（向下取整）
+
+**问题示意图**:
+```
+                    法线 ↑
+                    ─────
+     ┌─────────────┬─────────────┐
+     │             │             │
+     │   方块 A    │   方块 B    │
+     │   (2,0,0)   │   (3,0,0)   │
+     │             │             │
+     └─────────────┴─────────────┘
+                   ↑
+              击中点 x=3.0
+
+原逻辑: int(3.0) = 3 → 方块 B（可能不是用户想要的）
+```
+
+**修复方案** (line 77-112):
+
+1. **利用表面法线偏移**: 将击中点沿法线反方向偏移一小段距离，进入方块内部
+2. **使用 `math.floor()` 替代 `int()`**: 正确处理负坐标
+
+```python
+def brush_action(self, context, event):
+    import math
+    
+    # ... 射线检测代码 ...
+    
+    if result and obj == self.target_obj:
+        # 将击中位置和法线转换到对象局部空间
+        matrix_inv = self.target_obj.matrix_world.inverted()
+        local_location = matrix_inv @ location
+        local_normal = matrix_inv.to_3x3() @ normal  # 法线只需要旋转
+
+        # 关键：沿法线反方向偏移，进入方块内部
+        epsilon = 0.001
+        adjusted_location = local_location - local_normal.normalized() * epsilon
+
+        # 使用 floor 正确处理负坐标
+        block_coord = (
+            math.floor(adjusted_location.x),
+            math.floor(adjusted_location.y),
+            math.floor(adjusted_location.z)
+        )
+```
+
+**原理说明**:
+- 法线指向方块表面外部
+- 减去法线方向 = 向内偏移
+- 偏移后的点一定在被击中方块的内部
+- `math.floor()` 对任意实数正确向下取整
+
+**替代方案 - KDTree 最近邻搜索**:
+
+如果点云顶点不在整数坐标，可以使用 KDTree 查找最近顶点：
+
+```python
+from mathutils import kdtree
+
+# 在 invoke 中构建 KDTree：
+self.kd = kdtree.KDTree(len(mesh.vertices))
+for i, v in enumerate(mesh.vertices):
+    self.kd.insert(v.co, i)
+self.kd.balance()
+
+# 在 brush_action 中查找：
+co, vertex_index, dist = self.kd.find(adjusted_location)
+if dist < 1.0:  # 在合理范围内
+    # 直接使用 vertex_index，无需坐标取整
+```
+
+---
+
+## 技术细节：坐标系统与方块空间
+
+### 点云顶点与方块的关系
+
+```
+点云顶点坐标 (x, y, z) ─→ 几何节点实例化 ─→ 方块模型占据 [x,x+1) × [y,y+1) × [z,z+1)
+```
+
+### 创建点云时的坐标计算
+
+参考 `codes/schem.py:113`:
+```python
+vertices.append((x-min_coords[0], -(z-min_coords[2]), y-min_coords[1]))
+```
+
+- Minecraft 坐标系 (X, Y, Z) → Blender 坐标系 (X, -Z, Y)
+- 顶点坐标相对于原点偏移
+
+### 射线击中后的坐标转换流程
+
+```
+1. 世界空间击中点 (location)
+       ↓ matrix_inv @
+2. 局部空间击中点 (local_location)
+       ↓ - normal * epsilon
+3. 调整后位置 (adjusted_location)
+       ↓ math.floor()
+4. 方块坐标 (block_coord)
+       ↓ vertex_map.get()
+5. 顶点索引 (vertex_index)
+```

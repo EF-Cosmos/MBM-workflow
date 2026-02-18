@@ -77,6 +77,8 @@ class MBM_OT_BlockBrush(bpy.types.Operator):
             return {'CANCELLED'}
 
     def brush_action(self, context, event):
+        import math
+        
         region = context.region
         rv3d = context.region_data
         coord = event.mouse_region_x, event.mouse_region_y
@@ -92,18 +94,26 @@ class MBM_OT_BlockBrush(bpy.types.Operator):
         )
 
         if result and obj == self.target_obj:
-            # 将击中位置转换到对象局部空间
+            # 将击中位置和法线转换到对象局部空间
             matrix_inv = self.target_obj.matrix_world.inverted()
             local_location = matrix_inv @ location
+            local_normal = matrix_inv.to_3x3() @ normal  # 法线只需要旋转，不需要平移
+
+            # 沿法线反方向偏移，进入方块内部，避免边界判定问题
+            # 当击中点正好在方块边界上时（如 x=3.0），需要确定属于哪个方块
+            # 法线指向外部，所以减去法线方向可以进入方块内部
+            epsilon = 0.001
+            adjusted_location = local_location - local_normal.normalized() * epsilon
 
             # Debug: 输出射线击中的原始坐标
             print(f"[DEBUG] 射线击中 - 世界坐标: {location}, 局部坐标: {local_location}")
+            print(f"[DEBUG] 法线: {local_normal}, 调整后位置: {adjusted_location}")
 
-            # 计算方块坐标（向下取整）
+            # 计算方块坐标（使用 floor 正确处理负坐标）
             block_coord = (
-                int(local_location.x),
-                int(local_location.y),
-                int(local_location.z)
+                math.floor(adjusted_location.x),
+                math.floor(adjusted_location.y),
+                math.floor(adjusted_location.z)
             )
 
             # 从哈希字典查找顶点索引
