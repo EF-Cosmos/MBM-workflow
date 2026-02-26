@@ -124,7 +124,14 @@ importlib.reload(MBM_workflow)
 
 应该看到以下消息（没有 `_UL_` 和 `_PT_` 警告）：
 ```
-[MBM_workflow] 翻译系统已注册: E:\...\MBM_workflow\i18n\locales
+[MBM_workflow] 加载翻译文件: E:\...\MBM_workflow\i18n\locales\en_US\LC_MESSAGES\mbm_workflow.po (168 条)
+[MBM_workflow] 加载翻译文件: E:\...\MBM_workflow\i18n\locales\zh_CN\LC_MESSAGES\mbm_workflow.po (167 条)
+[MBM_workflow] 翻译系统已注册: ['en_US', 'zh_CN']
+```
+
+**错误示例**（表示有问题）:
+```
+[MBM_workflow] 翻译注册失败: bpy.app.translations.register() argument 2 must be dict, not str
 ```
 
 ### 3. 切换语言测试
@@ -166,7 +173,95 @@ blender --language en_US
 
 4. **模块加载顺序**：i18n 模块必须在 UI 模块之前注册翻译系统，在模块列表中最后注册。
 
+## Blender 5.0+ 翻译注册实现
+
+### 翻译字典格式
+
+Blender 5.0+ 要求 `bpy.app.translations.register()` 的第二个参数必须是翻译字典，而非文件路径。字典格式如下：
+
+```python
+{
+    'zh_CN': {
+        ('Panel', 'MBM_workflow'): 'MBM_workflow',
+        ('Panel', '方块'): '方块',
+        ('Operator', '导入'): '导入',
+        ('Property', '难度'): '难度',
+        ('Enum|0', '和平'): '和平',
+        # ... 更多翻译条目
+    },
+    'en_US': {
+        ('Panel', 'MBM_workflow'): 'MBM_workflow',
+        ('Panel', '方块'): 'Blocks',
+        # ... 更多翻译条目
+    }
+}
+```
+
+### .po 文件解析
+
+插件使用标准库 `re` 模块解析 .po 文件，无需额外依赖：
+
+```python
+def _parse_po_file(po_path):
+    """解析 .po 文件，返回翻译字典"""
+    translations = {}
+    # 使用正则表达式解析 msgctxt, msgid, msgstr
+    # 返回 {(context, message): translation} 格式的字典
+    return translations
+```
+
+### 注册流程
+
+```python
+def register_translations():
+    """注册翻译系统"""
+    translations_dict = load_translations_dict()
+    if translations_dict:
+        bpy.app.translations.register(TRANSLATION_DOMAIN, translations_dict)
+```
+
+### 类命名规范
+
+Blender 5.0+ 要求 UI 类遵循严格的命名规范：
+
+| 类类型 | 命名格式 | 示例 |
+|--------|----------|------|
+| Panel | `PREFIX_PT_*` | `MBM_PT_main_panel` |
+| UIList | `PREFIX_UL_*` | `MBM_UL_mod_list` |
+| Operator | `PREFIX_OT_*` | `MBM_OT_import_schem` |
+| Menu | `PREFIX_MT_*` | `MBM_MT_main_menu` |
+
+**注意**：不遵循此命名规范会导致警告消息。
+
 ## 故障排除
+
+### Blender 5.0+: 翻译注册失败
+
+**错误消息**:
+```
+[MBM_workflow] 翻译注册失败: bpy.app.translations.register() argument 2 must be dict, not str
+```
+
+**原因**: 传递了文件路径而非翻译字典。
+
+**解决方案**: 确认 `i18n/__init__.py` 中使用 `load_translations_dict()` 函数：
+```python
+def register_translations():
+    translations_dict = load_translations_dict()  # 返回字典
+    bpy.app.translations.register(TRANSLATION_DOMAIN, translations_dict)
+```
+
+### Blender 5.0+: 类命名警告
+
+**警告消息**:
+```
+Warning: Class 'MainPanel' does not follow Blender's naming conventions
+Expected: 'MBM_PT_main_panel'
+```
+
+**解决方案**: 确保 UI 类使用正确的命名前缀：
+- Panel 类: `MBM_PT_*`
+- UIList 类: `MBM_UL_*`
 
 ### 翻译没有生效
 
