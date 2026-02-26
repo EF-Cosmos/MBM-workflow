@@ -1,6 +1,8 @@
 """翻译辅助函数"""
 import bpy
-from bpy.app.translations import pgettext_iface
+
+# 翻译域常量
+TRANSLATION_DOMAIN = "mbm_workflow"
 
 def iface_(msgctxt, message):
     """带上下文的界面翻译
@@ -9,9 +11,21 @@ def iface_(msgctxt, message):
     如果翻译不存在，返回原始消息。
     """
     if msgctxt:
-        # 使用元组格式 (context, message) 查找翻译
-        return bpy.app.translations.pgettext_iface((msgctxt, message))
-    return pgettext_iface(message)
+        # 构造上下文键：context|message
+        key = f"{msgctxt}|{message}"
+        # 从 Blender 的翻译字典中查找
+        trans_dict = bpy.app.translations.translations.get(TRANSLATION_DOMAIN, {})
+        # 查找当前语言的翻译
+        for lang_dict in trans_dict.values():
+            if key in lang_dict:
+                return lang_dict[key]
+        # 使用 Blender 的内置翻译机制
+        translated = bpy.app.translations.pgettext_iface(key)
+        # 如果翻译后仍然是 key 格式，说明没有找到翻译，返回原始消息
+        if translated == key:
+            return message
+        return translated
+    return bpy.app.translations.pgettext_iface(message)
 
 def panel_label(message):
     """翻译面板标签"""
