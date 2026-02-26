@@ -7,9 +7,9 @@ from .i18n.translations import panel_label
 # 依赖管理
 from .codes.dependency_manager import litemapy
 
-class MainPanel(bpy.types.Panel):
+class MBM_PT_main_panel(bpy.types.Panel):
     bl_label = panel_label("MBM_workflow")
-    bl_idname ="MainPanel"
+    bl_idname = "MBM_PT_main_panel"
     bl_space_type ='VIEW_3D'
     bl_region_type = 'UI'
     bl_category ='MBM_workflow'
@@ -26,13 +26,13 @@ class MainPanel(bpy.types.Panel):
 
 
 #方块面板
-class BlockPanel(bpy.types.Panel):
+class MBM_PT_block_panel(bpy.types.Panel):
     bl_label = panel_label("方块")
-    bl_idname ="BlockPanel"
+    bl_idname = "MBM_PT_block_panel"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
     bl_category ='MBM_workflow'
-    bl_parent_id ='MainPanel'
+    bl_parent_id = "MBM_PT_main_panel"
     bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self,context):
@@ -43,13 +43,13 @@ class BlockPanel(bpy.types.Panel):
         row = layout.row()
         row.operator("mbm.import_json", text="导入.json文件")
 #导入面板
-class ImportPanel(bpy.types.Panel):
+class MBM_PT_import_panel(bpy.types.Panel):
     bl_label = panel_label("导入")
-    bl_idname ="ImportPanel"
+    bl_idname = "MBM_PT_import_panel"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
     bl_category ='MBM_workflow'
-    bl_parent_id ='MainPanel'
+    bl_parent_id = "MBM_PT_main_panel"
     bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self,context):
@@ -115,13 +115,13 @@ class ImportPanel(bpy.types.Panel):
         row.operator("mbm.merge_overlapping_faces", text="合并重叠面")
 
 #导出面板
-class ExportPanel(bpy.types.Panel):
+class MBM_PT_export_panel(bpy.types.Panel):
     bl_label = panel_label("导出")
-    bl_idname ="ExportPanel"
+    bl_idname = "MBM_PT_export_panel"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
     bl_category ='MBM_workflow'
-    bl_parent_id ='MainPanel'
+    bl_parent_id = "MBM_PT_main_panel"
     bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self,context):
@@ -137,13 +137,13 @@ class ExportPanel(bpy.types.Panel):
         box.operator("mbm.calculate_size",text="计算结构大小")
         box.operator("mbm.export_to_save",text="导出结构到存档")
 #创建存档面板
-class CreateLevel(bpy.types.Panel):
+class MBM_PT_create_level(bpy.types.Panel):
     bl_label = panel_label("创建存档")
-    bl_idname ="CreateLevelPanel"
+    bl_idname = "MBM_PT_create_level"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
     bl_category ='MBM_workflow'
-    bl_parent_id ='MainPanel'
+    bl_parent_id = "MBM_PT_main_panel"
     bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self,context):
@@ -180,13 +180,13 @@ class CreateLevel(bpy.types.Panel):
 
 
 #创建编辑面板
-class EditPanel(bpy.types.Panel):
+class MBM_PT_edit_panel(bpy.types.Panel):
     bl_label = panel_label("编辑")
-    bl_idname ="EditPanel"
+    bl_idname = "MBM_PT_edit_panel"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
     bl_category ='MBM_workflow'
-    bl_parent_id ='MainPanel'
+    bl_parent_id = "MBM_PT_main_panel"
     bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self,context):
@@ -215,13 +215,13 @@ class EditPanel(bpy.types.Panel):
 
         
 #创建存档面板
-class MoreLevelSettings(bpy.types.Panel):
+class MBM_PT_more_level_settings(bpy.types.Panel):
     bl_label = panel_label("更多设置")
-    bl_idname ="MoreLevelSettings"
+    bl_idname = "MBM_PT_more_level_settings"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
     bl_category ='MBM_workflow'
-    bl_parent_id ='CreateLevelPanel'
+    bl_parent_id = "MBM_PT_create_level"
     bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self,context):
@@ -247,13 +247,13 @@ class MoreLevelSettings(bpy.types.Panel):
         box.label(text="设置跳过夜晚所需的入睡玩家所占百分比。")
         box.prop(scene, "players_sleeping_percentage", text="")
 #创建存档面板
-class Ability(bpy.types.Panel):
+class MBM_PT_ability(bpy.types.Panel):
     bl_label = panel_label("玩家能力")
-    bl_idname ="Ability"
+    bl_idname = "MBM_PT_ability"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
     bl_category ='MBM_workflow'
-    bl_parent_id ='CreateLevelPanel'
+    bl_parent_id = "MBM_PT_create_level"
     bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self,context):
@@ -277,13 +277,13 @@ class Ability(bpy.types.Panel):
         box.prop(scene, "attack_speed", text="攻击速度")
 
 #创建游戏规则面板
-class GameRules(bpy.types.Panel):
+class MBM_PT_game_rules(bpy.types.Panel):
     bl_label = panel_label("游戏规则")
-    bl_idname ="GameRules"
+    bl_idname = "MBM_PT_game_rules"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
     bl_category ='MBM_workflow'
-    bl_parent_id ='MoreLevelSettings'
+    bl_parent_id = "MBM_PT_more_level_settings"
     bl_options = {'DEFAULT_CLOSED'}
     
     def draw(self,context):
@@ -407,13 +407,13 @@ class GameRules(bpy.types.Panel):
 
        
 # 资源包面板
-class ResourcepacksPanel(bpy.types.Panel):
+class MBM_PT_resourcepacks(bpy.types.Panel):
     bl_label = panel_label("资源包")
-    bl_idname = "ResourcepacksPanel"
+    bl_idname = "MBM_PT_resourcepacks"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'MBM_workflow'
-    bl_parent_id = 'ModPanel'
+    bl_parent_id = "MBM_PT_mod"
     bl_options = {'DEFAULT_CLOSED'}
 
 
@@ -424,7 +424,7 @@ class ResourcepacksPanel(bpy.types.Panel):
         row = layout.row()
         scene = context.scene
         my_properties = scene.my_properties 
-        row.template_list("ResourcepackList", "", my_properties, "resourcepack_list", my_properties, "resourcepack_list_index")
+        row.template_list("MBM_UL_resourcepack_list", "", my_properties, "resourcepack_list", my_properties, "resourcepack_list_index")
         
         col = row.column(align=True)
          # 上下移动按钮
@@ -436,13 +436,13 @@ class ResourcepacksPanel(bpy.types.Panel):
         layout.operator("mbm.unzip_resourcepacks_operator", text="刷新")
 
 #模组界面
-class ModPanel(bpy.types.Panel):
+class MBM_PT_mod(bpy.types.Panel):
     bl_label = panel_label("Mod 设置")
-    bl_idname = "ModPanel"
+    bl_idname = "MBM_PT_mod"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'MBM_workflow'
-    bl_parent_id = 'MainPanel'
+    bl_parent_id = "MBM_PT_main_panel"
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
@@ -458,7 +458,7 @@ class ModPanel(bpy.types.Panel):
         row.label(text="已加载的模组：")
         row = layout.row()
         # 使用template_list来显示模组列表
-        row.template_list("ModList", "", my_properties, "mod_list", my_properties, "mod_list_index")
+        row.template_list("MBM_UL_mod_list", "", my_properties, "mod_list", my_properties, "mod_list_index")
         col = row.column(align=True)
          # 上下移动按钮
         col.operator("mbm.move_mod_item", text="", icon='TRIA_UP').direction = 'UP'

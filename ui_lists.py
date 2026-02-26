@@ -8,13 +8,13 @@ from .i18n.translations import ui_list_label
 # UIList
 # -----------------------------------------------------------------------------
 
-class ResourcepackList(bpy.types.UIList):
+class MBM_UL_resourcepack_list(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             layout.label(text=item.name)
 
 # 定义 UIList 类 ColorToBlockList
-class ColorToBlockList(bpy.types.UIList):
+class MBM_UL_color_to_block_list(bpy.types.UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             my_properties = bpy.context.scene.my_properties
@@ -35,7 +35,7 @@ class ColorToBlockList(bpy.types.UIList):
                 split.row().prop(item, "type", text="", emboss=False)
             split.row().label(text=type_string)
 # 定义 UIList 类 ModList
-class ModList(bpy.types.UIList):
+class MBM_UL_mod_list(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             # 显示模组名称、图标和描述
@@ -43,8 +43,8 @@ class ModList(bpy.types.UIList):
             row.label(text=item.name)
             row.label(text=item.description)
 
-# 定义 UIList 类 ModList
-class SwitchBlockList(bpy.types.UIList):
+# 定义 UIList 类 SwitchBlockList
+class MBM_UL_switch_block_list(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             # 显示模组名称、图标和描述

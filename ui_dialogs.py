@@ -57,7 +57,7 @@ class ColorToBlockPanel(bpy.types.Operator):
         row = layout.row()
         row.operator("mbm.clear_color_dict",text="清除当前对照表")
         row = layout.row()
-        row.template_list("ColorToBlockList", "", my_properties, "color_to_block_list", my_properties, "color_to_block_list_index")
+        row.template_list("MBM_UL_color_to_block_list", "", my_properties, "color_to_block_list", my_properties, "color_to_block_list_index")
         col = row.column()
         col.operator("mbm.add_color_to_block_operator",text="", icon='ADD')
         col.operator("mbm.delete_color_to_block_operator",text="", icon='REMOVE')
@@ -181,7 +181,7 @@ class SwitchBlocks(bpy.types.Operator):
         row.emboss="NONE_OR_STATUS"
         row.operator("mbm.open_color_dict",text="刷新")
         row = layout.row()
-        row.template_list("SwitchBlockList", "", my_properties, "switch_block_list", my_properties, "switch_block_list_index")
+        row.template_list("MBM_UL_switch_block_list", "", my_properties, "switch_block_list", my_properties, "switch_block_list_index")
         row = layout.row()
         #row.operator("mbm.make_color_dict", text="准备（第一次需要按一下）")
         #row = layout.row()
