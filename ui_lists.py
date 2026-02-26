@@ -1,5 +1,9 @@
 import bpy
 
+# 翻译支持
+from bpy.app.translations import pgettext_iface as _
+from .i18n.translations import ui_list_label
+
 # -----------------------------------------------------------------------------
 # UIList
 # -----------------------------------------------------------------------------
@@ -13,15 +17,15 @@ class ResourcepackList(bpy.types.UIList):
 class ColorToBlockList(bpy.types.UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            my_properties = bpy.context.scene.my_properties 
+            my_properties = bpy.context.scene.my_properties
             row = layout.row()
             split = row.split(factor=0.65)
-             # 字符串映射字典
+             # 字符串映射字典（使用翻译）
             type_mapping = {
-                -1: "自动",
-                0: "方块",
-                1: "台阶",
-                2: "楼梯",
+                -1: ui_list_label("自动"),
+                0: ui_list_label("方块"),
+                1: ui_list_label("台阶"),
+                2: ui_list_label("楼梯"),
             }
             type_string = type_mapping.get(item.type, "Undefined")
             split.row().prop(item, "name", text="", emboss=False)

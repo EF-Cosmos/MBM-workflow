@@ -8,6 +8,10 @@ importlib.reload(dependency_manager)
 # install.py 在 Blender 5.0+ 中不再需要
 # Blender 会自动处理 blender_manifest.toml 中的 wheels
 
+# 加载国际化模块（必须在其他模块之前）
+from . import i18n
+importlib.reload(i18n)
+
 # 加载其他模块
 from .codes import property
 importlib.reload(property)
@@ -57,7 +61,8 @@ module_list = (
 	mesh_to_mc,
 	brush,
 	paint,
-	ui
+	ui,
+	i18n  # 翻译模块最后注册
 )
 
 

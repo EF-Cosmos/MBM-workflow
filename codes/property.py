@@ -16,6 +16,10 @@ import importlib
 from .. import config
 from .block_map_store import load_block_map
 
+# 翻译支持
+from bpy.app.translations import pgettext_iface as _
+from ..i18n.translations import property_name, enum_item, operator_label
+
 
 def get_mc_version(context):
     """
@@ -90,86 +94,86 @@ def update_target_id_from_enum(self, context):
         pass
 
 class ModInfo(bpy.types.PropertyGroup):
-    icon: bpy.props.StringProperty(name="图标") # type: ignore
-    name: bpy.props.StringProperty(name="名称") # type: ignore
-    description: bpy.props.StringProperty(name="描述") # type: ignore
+    icon: bpy.props.StringProperty(name=property_name("图标")) # type: ignore
+    name: bpy.props.StringProperty(name=property_name("名称")) # type: ignore
+    description: bpy.props.StringProperty(name=property_name("描述")) # type: ignore
 
 class BlockInfo(bpy.types.PropertyGroup):
-    name: bpy.props.StringProperty(name="名称") # type: ignore
-    filepath: bpy.props.StringProperty(name="文件位置") # type: ignore
-    type: bpy.props.IntProperty(name="种类", min=-1, max=2) # type: ignore
+    name: bpy.props.StringProperty(name=property_name("名称")) # type: ignore
+    filepath: bpy.props.StringProperty(name=property_name("文件位置")) # type: ignore
+    type: bpy.props.IntProperty(name=property_name("种类"), min=-1, max=2) # type: ignore
     color: bpy.props.FloatVectorProperty(
-        name="颜色",
+        name=property_name("颜色"),
         subtype='COLOR',
         min=0.0, max=1.0,
-        size=4,  
-        default=(1.0, 1.0, 1.0, 1.0)  
+        size=4,
+        default=(1.0, 1.0, 1.0, 1.0)
     )  # type: ignore
 
 class SwitchBlockInfo(bpy.types.PropertyGroup):
-    name: bpy.props.StringProperty(name="名称") # type: ignore
-    id: bpy.props.IntProperty(name="ID") # type: ignore
-    target_id: bpy.props.IntProperty(name="TargetID",update=switch_block_update) # type: ignore
+    name: bpy.props.StringProperty(name=property_name("名称")) # type: ignore
+    id: bpy.props.IntProperty(name=property_name("ID")) # type: ignore
+    target_id: bpy.props.IntProperty(name=property_name("TargetID"),update=switch_block_update) # type: ignore
     target_block_enum: bpy.props.EnumProperty(
-        name="选择方块",
+        name=property_name("选择方块"),
         items=get_block_items,
         update=update_target_id_from_enum,
-        description="选择要替换成的目标方块"
-    ) # type: ignore
+        description=property_name("选择要替换成的目标方块")
+    )  # type: ignore
 
 
 #属性
 class Property(bpy.types.PropertyGroup):
-    color_file_path: bpy.props.StringProperty(name="Color File Path",default="") # type: ignore
+    color_file_path: bpy.props.StringProperty(name=property_name("Color File Path"),default="") # type: ignore
     brush_block_enum: bpy.props.EnumProperty(
-        name="笔刷方块",
+        name=property_name("笔刷方块"),
         items=get_block_items,
-        description="笔刷使用的方块"
+        description=property_name("笔刷使用的方块")
     )
 
     bpy.types.Scene.mods_dir = bpy.props.StringProperty(
-        name="模组路径",
+        name=property_name("模组路径"),
         default=os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"temp")
     )
     bpy.types.Scene.jars_dir = bpy.props.StringProperty(
-        name="jar文件路径",
+        name=property_name("jar文件路径"),
         default=os.path.join("mods")
     )
     bpy.types.Scene.versions_dir = bpy.props.StringProperty(
-        name="版本路径",
+        name=property_name("版本路径"),
         default=os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"temp","minecraft")
     )
     bpy.types.Scene.saves_dir = bpy.props.StringProperty(
-        name="存档路径",
+        name=property_name("存档路径"),
         default=os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"saves")
     )
     bpy.types.Scene.colors_dir = bpy.props.StringProperty(
-        name="颜色路径",
+        name=property_name("颜色路径"),
         default=os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"colors")
     )
     bpy.types.Scene.schems_dir = bpy.props.StringProperty(
-        name=".schem文件路径",
+        name=property_name(".schem文件路径"),
         default=os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"schem")
     )
     bpy.types.Scene.zips_dir = bpy.props.StringProperty(
-        name="zip文件路径",
+        name=property_name("zip文件路径"),
         default=os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"resourcepacks")
     )
     bpy.types.Scene.resourcepacks_dir = bpy.props.StringProperty(
-        name="资源包路径",
+        name=property_name("资源包路径"),
         default=os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"temp", "资源包")
     )
     bpy.types.Scene.material_blend_path = bpy.props.StringProperty(
-        name="材质节点路径",
+        name=property_name("材质节点路径"),
         default=os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"codes","blend_files","Material.blend")
     )
     bpy.types.Scene.geometrynodes_blend_path = bpy.props.StringProperty(
-        name="几何节点路径",
+        name=property_name("几何节点路径"),
         default=os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"codes","blend_files","GeometryNodes.blend")
     )
-    bpy.types.Scene.is_weld = bpy.props.BoolProperty(name="合并重叠顶点", default=True)
+    bpy.types.Scene.is_weld = bpy.props.BoolProperty(name=property_name("合并重叠顶点"), default=True)
 
-    JsonImportSpeed: bpy.props.FloatProperty(name="导入速度(秒每个）",description="Import speed",min=0.01, max=2.0,default=1.0) # type: ignore
+    JsonImportSpeed: bpy.props.FloatProperty(name=property_name("导入速度(秒每个）"),description=property_name("Import speed"),min=0.01, max=2.0,default=1.0) # type: ignore
     resourcepack_list: bpy.props.CollectionProperty(type=bpy.types.PropertyGroup) # type: ignore
     resourcepack_list_index: bpy.props.IntProperty() # type: ignore
 
@@ -183,370 +187,410 @@ class Property(bpy.types.PropertyGroup):
 
     switch_block_list: bpy.props.CollectionProperty(type=SwitchBlockInfo) # type: ignore
     switch_block_list_index: bpy.props.IntProperty() # type: ignore
-    bpy.types.Scene.min_coordinates = bpy.props.IntVectorProperty(name="最小坐标", size=3)
-    bpy.types.Scene.max_coordinates = bpy.props.IntVectorProperty(name="最大坐标", size=3)
+    bpy.types.Scene.min_coordinates = bpy.props.IntVectorProperty(name=property_name("最小坐标"), size=3)
+    bpy.types.Scene.max_coordinates = bpy.props.IntVectorProperty(name=property_name("最大坐标"), size=3)
 
-    bpy.types.Scene.schem_size = bpy.props.IntVectorProperty(name="结构大小", size=3)
-    bpy.types.Scene.schem_location = bpy.props.IntVectorProperty(name="结构位置", size=3)
+    bpy.types.Scene.schem_size = bpy.props.IntVectorProperty(name=property_name("结构大小"), size=3)
+    bpy.types.Scene.schem_location = bpy.props.IntVectorProperty(name=property_name("结构位置"), size=3)
 
 
     # 定义一个 EnumProperty 作为下拉列表的选项
     bpy.types.Scene.version_list = bpy.props.EnumProperty(
-        name="版本",
-        description="选择一个版本",
+        name=property_name("版本"),
+        description=property_name("选择一个版本"),
         items=(),
     )
     bpy.types.Scene.save_list = bpy.props.EnumProperty(
-        name="存档",
-        description="选择一个存档",
+        name=property_name("存档"),
+        description=property_name("选择一个存档"),
         items=(),
     )
     bpy.types.Scene.schem_list = bpy.props.EnumProperty(
-        name=".schem文件",
-        description="选择一个.schem文件",
+        name=property_name(".schem文件"),
+        description=property_name("选择一个.schem文件"),
         items=(),
     )
     bpy.types.Scene.color_list = bpy.props.EnumProperty(
-        name="color文件",
-        description="选择一个颜色字典",
+        name=property_name("color文件"),
+        description=property_name("选择一个颜色字典"),
         items=(),
     )
     bpy.types.Scene.separate_vertices_by_blockid = bpy.props.BoolProperty(
-        name="按方块状态分离",
-        description="将导入的结构按照方块类型分离，每种方块类型生成一个独立的 Blender 对象",
+        name=property_name("按方块状态分离"),
+        description=property_name("将导入的结构按照方块类型分离，每种方块类型生成一个独立的 Blender 对象"),
         default=False
     )
     bpy.types.Scene.separate_vertices_by_chunk = bpy.props.BoolProperty(
-        name="按区块分离",
-        description="将导入的结构按照 Minecraft 区块（16x16x16）分离，每个区块生成一个独立的 Blender 对象",
+        name=property_name("按区块分离"),
+        description=property_name("将导入的结构按照 Minecraft 区块（16x16x16）分离，每个区块生成一个独立的 Blender 对象"),
         default=False
     )
-    bpy.types.Scene.schem_filename = bpy.props.StringProperty(name=".schem文件名", default="file")
+    bpy.types.Scene.schem_filename = bpy.props.StringProperty(name=property_name(".schem文件名"), default="file")
 
     # Minecraft 版本配置
     bpy.types.Scene.mc_platform = bpy.props.EnumProperty(
-        name="MC 平台",
-        description="Minecraft 版本平台",
+        name=property_name("MC 平台"),
+        description=property_name("Minecraft 版本平台"),
         items=[
-            ("java", "Java Edition", "Java 版本"),
-            ("bedrock", "Bedrock Edition", "基岩版（主机/手机）")
+            enum_item("java", property_name("Java Edition"), property_name("Java 版本")),
+            enum_item("bedrock", property_name("Bedrock Edition"), property_name("基岩版（主机/手机）"))
         ],
         default="java"
     )
     bpy.types.Scene.mc_version_major = bpy.props.IntProperty(
-        name="主版本号",
-        description="Minecraft 主版本号（如 1.21.11 中的 1）",
+        name=property_name("主版本号"),
+        description=property_name("Minecraft 主版本号（如 1.21.11 中的 1）"),
         default=1,
         min=1,
         max=2
     )
     bpy.types.Scene.mc_version_minor = bpy.props.IntProperty(
-        name="次版本号",
-        description="Minecraft 次版本号（如 1.21.11 中的 21）",
+        name=property_name("次版本号"),
+        description=property_name("Minecraft 次版本号（如 1.21.11 中的 21）"),
         default=21,
         min=7,
         max=21
     )
     bpy.types.Scene.mc_version_patch = bpy.props.IntProperty(
-        name="补丁版本号",
-        description="Minecraft 补丁版本号（如 1.21.9 中的 9）",
+        name=property_name("补丁版本号"),
+        description=property_name("Minecraft 补丁版本号（如 1.21.9 中的 9）"),
         default=9,
         min=0,
         max=10
     )
 
-    bpy.types.Scene.world_name = bpy.props.StringProperty(name="World Name", default="World1")
-    bpy.types.Scene.spawn_x = bpy.props.IntProperty(name="Spawn X", default=0)
-    bpy.types.Scene.spawn_y = bpy.props.IntProperty(name="Spawn Y", default=64)
-    bpy.types.Scene.spawn_z = bpy.props.IntProperty(name="Spawn Z", default=0)
+    bpy.types.Scene.world_name = bpy.props.StringProperty(name=property_name("World Name"), default="World1")
+    bpy.types.Scene.spawn_x = bpy.props.IntProperty(name=property_name("Spawn X"), default=0)
+    bpy.types.Scene.spawn_y = bpy.props.IntProperty(name=property_name("Spawn Y"), default=64)
+    bpy.types.Scene.spawn_z = bpy.props.IntProperty(name=property_name("Spawn Z"), default=0)
     bpy.types.Scene.hardcore = bpy.props.EnumProperty(
-        name="极限模式",
-        items=[("0", "否", "否"), ("1", "是", "是")],
+        name=property_name("极限模式"),
+        items=[
+            enum_item("0", property_name("否"), property_name("否")),
+            enum_item("1", property_name("是"), property_name("是"))
+        ],
         default="0"
     )
     bpy.types.Scene.difficulty = bpy.props.EnumProperty(
-        name="难度",
-        items=[("0", "和平", "和平模式"), ("1", "简单", "简单模式"), ("2", "普通", "普通模式"), ("3", "困难", "困难模式")],
+        name=property_name("难度"),
+        items=[
+            enum_item("0", property_name("和平"), property_name("和平模式")),
+            enum_item("1", property_name("简单"), property_name("简单模式")),
+            enum_item("2", property_name("普通"), property_name("普通模式")),
+            enum_item("3", property_name("困难"), property_name("困难模式"))
+        ],
         default="0"
     )
     bpy.types.Scene.gametype = bpy.props.EnumProperty(
-        name="游戏模式",
-        items=[("0", "生存", "和平模式"), ("1", "创造", "创造模式"), ("2", "冒险", "冒险模式"), ("3", "旁观", "旁观模式")],
+        name=property_name("游戏模式"),
+        items=[
+            enum_item("0", property_name("生存"), property_name("和平模式")),
+            enum_item("1", property_name("创造"), property_name("创造模式")),
+            enum_item("2", property_name("冒险"), property_name("冒险模式")),
+            enum_item("3", property_name("旁观"), property_name("旁观模式"))
+        ],
         default="1"
     )
     bpy.types.Scene.overworld_generator_type = bpy.props.EnumProperty(
-        name="主世界生成类型",
-        items=[("noise", "噪波", "一般世界"), ("flat", "平坦", "平坦世界"), ("debug", "DEBUG", "DEBUG")],
+        name=property_name("主世界生成类型"),
+        items=[
+            enum_item("noise", property_name("噪波"), property_name("一般世界")),
+            enum_item("flat", property_name("平坦"), property_name("平坦世界")),
+            enum_item("debug", property_name("DEBUG"), property_name("DEBUG"))
+        ],
         default="noise"
     )
     bpy.types.Scene.allow_commands = bpy.props.EnumProperty(
-        name="允许指令",
-        items=[("0", "否", "否"), ("1", "是", "是")],
+        name=property_name("允许指令"),
+        items=[
+            enum_item("0", property_name("否"), property_name("否")),
+            enum_item("1", property_name("是"), property_name("是"))
+        ],
         default="1"
     )
     bpy.types.Scene.breaking_the_height_limit = bpy.props.EnumProperty(
-        name="突破限高",
-        items=[("0", "否", "否"), ("1", "是", "突破限高至2032！")],
+        name=property_name("突破限高"),
+        items=[
+            enum_item("0", property_name("否"), property_name("否")),
+            enum_item("1", property_name("是"), property_name("突破限高至2032！"))
+        ],
         default="0"
     )
 
-    # 布尔值
+    # 布尔值游戏规则（辅助函数）
+    def _true_false_enum_items():
+        yes = property_name("是")
+        no = property_name("否")
+        return [
+            enum_item("True", yes, yes),
+            enum_item("False", no, no)
+        ]
+
+    def _false_true_enum_items():
+        yes = property_name("是")
+        no = property_name("否")
+        return [
+            enum_item("False", no, no),
+            enum_item("True", yes, yes)
+        ]
+
+    # 游戏规则属性
     bpy.types.Scene.announce_advancements = bpy.props.EnumProperty(
-        name="Announce Advancements",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Announce Advancements"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.block_explosion_drop_decay = bpy.props.EnumProperty(
-        name="Block Explosion Drop Decay",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Block Explosion Drop Decay"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.command_block_output = bpy.props.EnumProperty(
-        name="Command Block Output",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Command Block Output"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.disable_elytra_movement_check = bpy.props.EnumProperty(
-        name="Disable Elytra Movement Check",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Disable Elytra Movement Check"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.disable_raids = bpy.props.EnumProperty(
-        name="Disable Raids",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Disable Raids"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.do_daylight_cycle = bpy.props.EnumProperty(
-        name="Do Daylight Cycle",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Do Daylight Cycle"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.do_entity_drops = bpy.props.EnumProperty(
-        name="Do Entity Drops",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Do Entity Drops"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.do_fire_tick = bpy.props.EnumProperty(
-        name="Do Fire Tick",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Do Fire Tick"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.do_immediate_respawn = bpy.props.EnumProperty(
-        name="Do Immediate Respawn",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Do Immediate Respawn"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.do_insomnia = bpy.props.EnumProperty(
-        name="Do Insomnia",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Do Insomnia"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.do_limited_crafting = bpy.props.EnumProperty(
-        name="Do Limited Crafting",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Do Limited Crafting"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.do_mob_loot = bpy.props.EnumProperty(
-        name="Do Mob Loot",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Do Mob Loot"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.do_mob_spawning = bpy.props.EnumProperty(
-        name="Do Mob Spawning",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Do Mob Spawning"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.do_patrol_spawning = bpy.props.EnumProperty(
-        name="Do Patrol Spawning",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Do Patrol Spawning"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.do_tile_drops = bpy.props.EnumProperty(
-        name="Do Tile Drops",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Do Tile Drops"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.do_trader_spawning = bpy.props.EnumProperty(
-        name="Do Trader Spawning",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Do Trader Spawning"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.do_vines_spread = bpy.props.EnumProperty(
-        name="Do Vines Spread",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Do Vines Spread"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.do_warden_spawning = bpy.props.EnumProperty(
-        name="Do Warden Spawning",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Do Warden Spawning"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.do_weather_cycle = bpy.props.EnumProperty(
-        name="Do Weather Cycle",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Do Weather Cycle"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.drowning_damage = bpy.props.EnumProperty(
-        name="Drowning Damage",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Drowning Damage"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.fall_damage = bpy.props.EnumProperty(
-        name="Fall Damage",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Fall Damage"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.fire_damage = bpy.props.EnumProperty(
-        name="Fire Damage",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Fire Damage"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.forgive_dead_players = bpy.props.EnumProperty(
-        name="Forgive Dead Players",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Forgive Dead Players"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.freeze_damage = bpy.props.EnumProperty(
-        name="Freeze Damage",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Freeze Damage"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.global_sound_events = bpy.props.EnumProperty(
-        name="Global Sound Events",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Global Sound Events"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.keep_inventory = bpy.props.EnumProperty(
-        name="Keep Inventory",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Keep Inventory"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.lava_source_conversion = bpy.props.EnumProperty(
-        name="Lava Source Conversion",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Lava Source Conversion"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.log_admin_commands = bpy.props.EnumProperty(
-        name="Log Admin Commands",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Log Admin Commands"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.mob_explosion_drop_decay = bpy.props.EnumProperty(
-        name="Mob Explosion Drop Decay",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Mob Explosion Drop Decay"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.mob_griefing = bpy.props.EnumProperty(
-        name="Mob Griefing",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Mob Griefing"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.natural_regeneration = bpy.props.EnumProperty(
-        name="Natural Regeneration",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Natural Regeneration"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.reduced_debug_info = bpy.props.EnumProperty(
-        name="Reduced Debug Info",
-        items=[("False", "否", "否"), ("True", "是", "是")],
+        name=property_name("Reduced Debug Info"),
+        items=_false_true_enum_items(),
         default="False"
     )
 
     bpy.types.Scene.send_command_feedback = bpy.props.EnumProperty(
-        name="Send Command Feedback",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Send Command Feedback"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.show_death_messages = bpy.props.EnumProperty(
-        name="Show Death Messages",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Show Death Messages"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.spectators_generate_chunks = bpy.props.EnumProperty(
-        name="Spectators Generate Chunks",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Spectators Generate Chunks"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.tnt_explosion_drop_decay = bpy.props.EnumProperty(
-        name="TNT Explosion Drop Decay",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("TNT Explosion Drop Decay"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.universal_anger = bpy.props.EnumProperty(
-        name="Universal Anger",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Universal Anger"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     bpy.types.Scene.water_source_conversion = bpy.props.EnumProperty(
-        name="Water Source Conversion",
-        items=[("True", "是", "是"), ("False", "否", "否")],
+        name=property_name("Water Source Conversion"),
+        items=_true_false_enum_items(),
         default="True"
     )
 
     # 整数
-    bpy.types.Scene.max_entity_cramming = bpy.props.IntProperty(name="Max Entity Cramming",default=12)
-    bpy.types.Scene.snow_accumulation_height = bpy.props.IntProperty(name="Snow Accumulation Height",default=1)
-    bpy.types.Scene.spawn_radius = bpy.props.IntProperty(name="Spawn Radius",default=10)
-    bpy.types.Scene.players_sleeping_percentage = bpy.props.IntProperty(name="Players Sleeping Percentage",default=0)
-    bpy.types.Scene.random_tick_speed = bpy.props.IntProperty(name="Random Tick Speed",default=0)
-    bpy.types.Scene.command_modification_block_limit = bpy.props.IntProperty(name="Command Modification Block Limit",default=32768)
-    bpy.types.Scene.max_command_chain_length = bpy.props.IntProperty(name="Max Command Chain Length",default=65536)
-    bpy.types.Scene.day_time = bpy.props.IntProperty(name="Day Time", default=16000)
-    bpy.types.Scene.seed = bpy.props.IntProperty(name="Seed", default=random.randint(0, 10000))
+    bpy.types.Scene.max_entity_cramming = bpy.props.IntProperty(name=property_name("Max Entity Cramming"),default=12)
+    bpy.types.Scene.snow_accumulation_height = bpy.props.IntProperty(name=property_name("Snow Accumulation Height"),default=1)
+    bpy.types.Scene.spawn_radius = bpy.props.IntProperty(name=property_name("Spawn Radius"),default=10)
+    bpy.types.Scene.players_sleeping_percentage = bpy.props.IntProperty(name=property_name("Players Sleeping Percentage"),default=0)
+    bpy.types.Scene.random_tick_speed = bpy.props.IntProperty(name=property_name("Random Tick Speed"),default=0)
+    bpy.types.Scene.command_modification_block_limit = bpy.props.IntProperty(name=property_name("Command Modification Block Limit"),default=32768)
+    bpy.types.Scene.max_command_chain_length = bpy.props.IntProperty(name=property_name("Max Command Chain Length"),default=65536)
+    bpy.types.Scene.day_time = bpy.props.IntProperty(name=property_name("Day Time"), default=16000)
+    bpy.types.Scene.seed = bpy.props.IntProperty(name=property_name("Seed"), default=random.randint(0, 10000))
 
-    bpy.types.Scene.flySpeed = bpy.props.FloatProperty(name="FlySpeed", default=0.05)
-    bpy.types.Scene.flying = bpy.props.BoolProperty(name="Flying", default=False)
-    bpy.types.Scene.instabuild = bpy.props.BoolProperty(name="instabuild", default=True)
-    bpy.types.Scene.invulnerable = bpy.props.BoolProperty(name="invulnerable", default=True)
-    bpy.types.Scene.mayBuild = bpy.props.BoolProperty(name="mayBuild", default=True)
-    bpy.types.Scene.mayfly = bpy.props.BoolProperty(name="mayfly", default=True)
+    bpy.types.Scene.flySpeed = bpy.props.FloatProperty(name=property_name("FlySpeed"), default=0.05)
+    bpy.types.Scene.flying = bpy.props.BoolProperty(name=property_name("Flying"), default=False)
+    bpy.types.Scene.instabuild = bpy.props.BoolProperty(name=property_name("instabuild"), default=True)
+    bpy.types.Scene.invulnerable = bpy.props.BoolProperty(name=property_name("invulnerable"), default=True)
+    bpy.types.Scene.mayBuild = bpy.props.BoolProperty(name=property_name("mayBuild"), default=True)
+    bpy.types.Scene.mayfly = bpy.props.BoolProperty(name=property_name("mayfly"), default=True)
 
-    bpy.types.Scene.walkSpeed = bpy.props.FloatProperty(name="walkSpeed", default=0.1)
+    bpy.types.Scene.walkSpeed = bpy.props.FloatProperty(name=property_name("walkSpeed"), default=0.1)
 
-    bpy.types.Scene.luck = bpy.props.FloatProperty(name="幸运值", default=0, min=-1024, max=1024)
-    bpy.types.Scene.max_health = bpy.props.FloatProperty(name="最大生命值", default=20, min=1, max=1024)
-    bpy.types.Scene.knockback_resistance = bpy.props.FloatProperty(name="击退抗性", default=0, min=0, max=1)
-    bpy.types.Scene.movement_speed = bpy.props.FloatProperty(name="移动加速度", default=0, min=0, max=1024)
-    bpy.types.Scene.armor = bpy.props.FloatProperty(name="盔甲值", default=0, min=0, max=30)
-    bpy.types.Scene.armor_toughness = bpy.props.FloatProperty(name="盔甲韧性", default=0, min=0, max=20)
-    bpy.types.Scene.attack_damage = bpy.props.FloatProperty(name="攻击伤害", default=0, min=0, max=2048)
-    bpy.types.Scene.attack_speed = bpy.props.FloatProperty(name="攻击速度", default=0, min=0, max=1024)
+    bpy.types.Scene.luck = bpy.props.FloatProperty(name=property_name("幸运值"), default=0, min=-1024, max=1024)
+    bpy.types.Scene.max_health = bpy.props.FloatProperty(name=property_name("最大生命值"), default=20, min=1, max=1024)
+    bpy.types.Scene.knockback_resistance = bpy.props.FloatProperty(name=property_name("击退抗性"), default=0, min=0, max=1)
+    bpy.types.Scene.movement_speed = bpy.props.FloatProperty(name=property_name("移动加速度"), default=0, min=0, max=1024)
+    bpy.types.Scene.armor = bpy.props.FloatProperty(name=property_name("盔甲值"), default=0, min=0, max=30)
+    bpy.types.Scene.armor_toughness = bpy.props.FloatProperty(name=property_name("盔甲韧性"), default=0, min=0, max=20)
+    bpy.types.Scene.attack_damage = bpy.props.FloatProperty(name=property_name("攻击伤害"), default=0, min=0, max=2048)
+    bpy.types.Scene.attack_speed = bpy.props.FloatProperty(name=property_name("攻击速度"), default=0, min=0, max=1024)
     
 def unzip_mods_files():
     # 指定的文件夹路径
@@ -736,7 +780,7 @@ def unzip_resourcepacks_files():
         
 class UnzipModOperator(bpy.types.Operator):
     bl_idname = "mbm.unzip_mods_operator"
-    bl_label = "加载模组包"
+    bl_label = operator_label("加载模组包")
 
     def execute(self, context):
         thread = threading.Thread(target=unzip_mods_files)
@@ -753,7 +797,7 @@ class UnzipModOperator(bpy.types.Operator):
 
 class UnzipResourcepacksOperator(bpy.types.Operator):
     bl_idname = "mbm.unzip_resourcepacks_operator"
-    bl_label = "加载模组包"
+    bl_label = operator_label("加载模组包")
 
     def execute(self, context):
         thread = threading.Thread(target=unzip_resourcepacks_files)

@@ -26,3 +26,6 @@ temp_litemapy/
 schemcache/
 *.pkl
 
+# 翻译编译文件（.mo 由 .po 生成）
+i18n/locales/**/*.mo
+

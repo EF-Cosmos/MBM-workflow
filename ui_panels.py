@@ -1,10 +1,14 @@
 import bpy
 
-# ????????????????
+# 翻译支持
+from bpy.app.translations import pgettext_iface as _
+from .i18n.translations import panel_label
+
+# 依赖管理
 from .codes.dependency_manager import litemapy
 
 class MainPanel(bpy.types.Panel):
-    bl_label = "MBM_workflow"
+    bl_label = panel_label("MBM_workflow")
     bl_idname ="MainPanel"
     bl_space_type ='VIEW_3D'
     bl_region_type = 'UI'
@@ -23,7 +27,7 @@ class MainPanel(bpy.types.Panel):
 
 #方块面板
 class BlockPanel(bpy.types.Panel):
-    bl_label ="方块"
+    bl_label = panel_label("方块")
     bl_idname ="BlockPanel"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
@@ -38,9 +42,9 @@ class BlockPanel(bpy.types.Panel):
 
         row = layout.row()
         row.operator("mbm.import_json", text="导入.json文件")
-#导入面板     
+#导入面板
 class ImportPanel(bpy.types.Panel):
-    bl_label ="导入"
+    bl_label = panel_label("导入")
     bl_idname ="ImportPanel"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
@@ -110,9 +114,9 @@ class ImportPanel(bpy.types.Panel):
         row=box.row()
         row.operator("mbm.merge_overlapping_faces", text="合并重叠面")
 
-#导出面板     
+#导出面板
 class ExportPanel(bpy.types.Panel):
-    bl_label ="导出"
+    bl_label = panel_label("导出")
     bl_idname ="ExportPanel"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
@@ -134,7 +138,7 @@ class ExportPanel(bpy.types.Panel):
         box.operator("mbm.export_to_save",text="导出结构到存档")
 #创建存档面板
 class CreateLevel(bpy.types.Panel):
-    bl_label ="创建存档"
+    bl_label = panel_label("创建存档")
     bl_idname ="CreateLevelPanel"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
@@ -177,7 +181,7 @@ class CreateLevel(bpy.types.Panel):
 
 #创建编辑面板
 class EditPanel(bpy.types.Panel):
-    bl_label ="编辑"
+    bl_label = panel_label("编辑")
     bl_idname ="EditPanel"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
@@ -212,7 +216,7 @@ class EditPanel(bpy.types.Panel):
         
 #创建存档面板
 class MoreLevelSettings(bpy.types.Panel):
-    bl_label ="更多设置"
+    bl_label = panel_label("更多设置")
     bl_idname ="MoreLevelSettings"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
@@ -244,7 +248,7 @@ class MoreLevelSettings(bpy.types.Panel):
         box.prop(scene, "players_sleeping_percentage", text="")
 #创建存档面板
 class Ability(bpy.types.Panel):
-    bl_label ="玩家能力"
+    bl_label = panel_label("玩家能力")
     bl_idname ="Ability"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
@@ -274,7 +278,7 @@ class Ability(bpy.types.Panel):
 
 #创建游戏规则面板
 class GameRules(bpy.types.Panel):
-    bl_label ="游戏规则"
+    bl_label = panel_label("游戏规则")
     bl_idname ="GameRules"
     bl_space_type ='VIEW_3D'
     bl_region_type ='UI'
@@ -404,7 +408,7 @@ class GameRules(bpy.types.Panel):
        
 # 资源包面板
 class ResourcepacksPanel(bpy.types.Panel):
-    bl_label = "资源包"
+    bl_label = panel_label("资源包")
     bl_idname = "ResourcepacksPanel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -433,7 +437,7 @@ class ResourcepacksPanel(bpy.types.Panel):
 
 #模组界面
 class ModPanel(bpy.types.Panel):
-    bl_label = "Mod 设置"
+    bl_label = panel_label("Mod 设置")
     bl_idname = "ModPanel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'

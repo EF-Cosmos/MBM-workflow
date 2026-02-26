@@ -1,10 +1,14 @@
 import bpy
 
+# 翻译支持
+from bpy.app.translations import pgettext_iface as _
+from .i18n.translations import operator_label
+
 from .codes.block_map_store import load_block_map
 
 class SchemImportPanel(bpy.types.Operator):
     bl_idname = "mbm.schem_import_panel"
-    bl_label = "导入Schem文件二级界面"
+    bl_label = operator_label("导入Schem文件二级界面")
 
     def execute(self, context):
         
@@ -30,7 +34,7 @@ class SchemImportPanel(bpy.types.Operator):
 
 class ColorToBlockPanel(bpy.types.Operator):
     bl_idname = "mbm.color_to_block_panel"
-    bl_label = "颜色方块对照表制作界面"
+    bl_label = operator_label("颜色方块对照表制作界面")
 
     def execute(self, context):
         
@@ -67,7 +71,7 @@ class ColorToBlockPanel(bpy.types.Operator):
 
 class SwitchBlocks(bpy.types.Operator):
     bl_idname = "mbm.switch_blocks_panel"
-    bl_label = "替换方块界面"
+    bl_label = operator_label("替换方块界面")
 
     def execute(self, context):
         return {'FINISHED'}

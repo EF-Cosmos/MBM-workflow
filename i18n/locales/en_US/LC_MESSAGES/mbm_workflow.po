@@ -1,0 +1,692 @@
+# MBM_workflow English Translation
+msgid ""
+msgstr ""
+"Project-Id-Version: MBM_workflow\n"
+"Language: en_US\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# Panel labels
+msgctxt "Panel"
+msgid "MBM_workflow"
+msgstr "MBM_workflow"
+
+msgctxt "Panel"
+msgid "方块"
+msgstr "Blocks"
+
+msgctxt "Panel"
+msgid "导入"
+msgstr "Import"
+
+msgctxt "Panel"
+msgid "导出"
+msgstr "Export"
+
+msgctxt "Panel"
+msgid "编辑"
+msgstr "Edit"
+
+msgctxt "Panel"
+msgid "创建存档"
+msgstr "Create World"
+
+msgctxt "Panel"
+msgid "更多设置"
+msgstr "More Settings"
+
+msgctxt "Panel"
+msgid "玩家能力"
+msgstr "Player Abilities"
+
+msgctxt "Panel"
+msgid "游戏规则"
+msgstr "Game Rules"
+
+msgctxt "Panel"
+msgid "资源包"
+msgstr "Resource Packs"
+
+msgctxt "Panel"
+msgid "Mod 设置"
+msgstr "Mod Settings"
+
+# Operator labels
+msgctxt "Operator"
+msgid "导入Schem文件二级界面"
+msgstr "Schematic Import Options"
+
+msgctxt "Operator"
+msgid "颜色方块对照表制作界面"
+msgstr "Color-Block Dictionary Editor"
+
+msgctxt "Operator"
+msgid "替换方块界面"
+msgstr "Block Replacement Interface"
+
+# UIList labels
+msgctxt "UIList"
+msgid "自动"
+msgstr "Auto"
+
+msgctxt "UIList"
+msgid "方块"
+msgstr "Block"
+
+msgctxt "UIList"
+msgid "台阶"
+msgstr "Slab"
+
+msgctxt "UIList"
+msgid "楼梯"
+msgstr "Stairs"
+
+# Property names
+msgctxt "Property"
+msgid "难度"
+msgstr "Difficulty"
+
+msgctxt "Property"
+msgid "和平"
+msgstr "Peaceful"
+
+msgctxt "Property"
+msgid "简单"
+msgstr "Easy"
+
+msgctxt "Property"
+msgid "普通"
+msgstr "Normal"
+
+msgctxt "Property"
+msgid "困难"
+msgstr "Hard"
+
+msgctxt "Property"
+msgid "游戏模式"
+msgstr "Game Mode"
+
+msgctxt "Property"
+msgid "生存"
+msgstr "Survival"
+
+msgctxt "Property"
+msgid "创造"
+msgstr "Creative"
+
+msgctxt "Property"
+msgid "冒险"
+msgstr "Adventure"
+
+msgctxt "Property"
+msgid "旁观"
+msgstr "Spectator"
+
+msgctxt "Property"
+msgid "主世界生成类型"
+msgstr "World Type"
+
+msgctxt "Property"
+msgid "噪波"
+msgstr "Noise"
+
+msgctxt "Property"
+msgid "平坦"
+msgstr "Flat"
+
+msgctxt "Property"
+msgid "DEBUG"
+msgstr "DEBUG"
+
+msgctxt "Property"
+msgid "极限模式"
+msgstr "Hardcore"
+
+msgctxt "Property"
+msgid "否"
+msgstr "No"
+
+msgctxt "Property"
+msgid "是"
+msgstr "Yes"
+
+msgctxt "Property"
+msgid "允许指令"
+msgstr "Allow Commands"
+
+msgctxt "Property"
+msgid "突破限高"
+msgstr "Breaking Height Limit"
+
+msgctxt "Property"
+msgid "突破限高至2032！"
+msgstr "Break height limit to 2032!"
+
+# Version related
+msgctxt "Property"
+msgid "MC 平台"
+msgstr "MC Platform"
+
+msgctxt "Property"
+msgid "Java Edition"
+msgstr "Java Edition"
+
+msgctxt "Property"
+msgid "Java 版本"
+msgstr "Java Version"
+
+msgctxt "Property"
+msgid "Bedrock Edition"
+msgstr "Bedrock Edition"
+
+msgctxt "Property"
+msgid "基岩版（主机/手机）"
+msgstr "Bedrock (Console/Mobile)"
+
+msgctxt "Property"
+msgid "主版本号"
+msgstr "Major Version"
+
+msgctxt "Property"
+msgid "Minecraft 主版本号（如 1.21.11 中的 1）"
+msgstr "Minecraft major version (e.g., 1 in 1.21.11)"
+
+msgctxt "Property"
+msgid "次版本号"
+msgstr "Minor Version"
+
+msgctxt "Property"
+msgid "Minecraft 次版本号（如 1.21.11 中的 21）"
+msgstr "Minecraft minor version (e.g., 21 in 1.21.11)"
+
+msgctxt "Property"
+msgid "补丁版本号"
+msgstr "Patch Version"
+
+msgctxt "Property"
+msgid "Minecraft 补丁版本号（如 1.21.9 中的 9）"
+msgstr "Minecraft patch version (e.g., 9 in 1.21.9)"
+
+# Path properties
+msgctxt "Property"
+msgid "模组路径"
+msgstr "Mods Path"
+
+msgctxt "Property"
+msgid "jar文件路径"
+msgstr "JAR Files Path"
+
+msgctxt "Property"
+msgid "版本路径"
+msgstr "Versions Path"
+
+msgctxt "Property"
+msgid "存档路径"
+msgstr "Saves Path"
+
+msgctxt "Property"
+msgid "颜色路径"
+msgstr "Colors Path"
+
+msgctxt "Property"
+msgid ".schem文件路径"
+msgstr ".schem Files Path"
+
+msgctxt "Property"
+msgid "zip文件路径"
+msgstr "ZIP Files Path"
+
+msgctxt "Property"
+msgid "资源包路径"
+msgstr "Resource Packs Path"
+
+msgctxt "Property"
+msgid "材质节点路径"
+msgstr "Material Nodes Path"
+
+msgctxt "Property"
+msgid "几何节点路径"
+msgstr "Geometry Nodes Path"
+
+msgctxt "Property"
+msgid "合并重叠顶点"
+msgstr "Merge Overlapping Vertices"
+
+msgctxt "Property"
+msgid "导入速度(秒每个）"
+msgstr "Import Speed (sec per block)"
+
+msgctxt "Property"
+msgid "Import speed"
+msgstr "Import speed"
+
+msgctxt "Property"
+msgid "最小坐标"
+msgstr "Minimum Coordinates"
+
+msgctxt "Property"
+msgid "最大坐标"
+msgstr "Maximum Coordinates"
+
+msgctxt "Property"
+msgid "结构大小"
+msgstr "Structure Size"
+
+msgctxt "Property"
+msgid "结构位置"
+msgstr "Structure Location"
+
+msgctxt "Property"
+msgid "版本"
+msgstr "Version"
+
+msgctxt "Property"
+msgid "选择一个版本"
+msgstr "Select a version"
+
+msgctxt "Property"
+msgid "存档"
+msgstr "World"
+
+msgctxt "Property"
+msgid "选择一个存档"
+msgstr "Select a world"
+
+msgctxt "Property"
+msgid ".schem文件"
+msgstr ".schem File"
+
+msgctxt "Property"
+msgid "选择一个.schem文件"
+msgstr "Select a .schem file"
+
+msgctxt "Property"
+msgid "color文件"
+msgstr "Color File"
+
+msgctxt "Property"
+msgid "选择一个颜色字典"
+msgstr "Select a color dictionary"
+
+msgctxt "Property"
+msgid "按方块状态分离"
+msgstr "Separate by Block State"
+
+msgctxt "Property"
+msgid "将导入的结构按照方块类型分离，每种方块类型生成一个独立的 Blender 对象"
+msgstr "Separate imported structure by block type, creating a separate Blender object for each block type"
+
+msgctxt "Property"
+msgid "按区块分离"
+msgstr "Separate by Chunk"
+
+msgctxt "Property"
+msgid "将导入的结构按照 Minecraft 区块（16x16x16）分离，每个区块生成一个独立的 Blender 对象"
+msgstr "Separate imported structure by Minecraft chunks (16x16x16), creating a separate Blender object for each chunk"
+
+msgctxt "Property"
+msgid ".schem文件名"
+msgstr ".schem Filename"
+
+msgctxt "Property"
+msgid "World Name"
+msgstr "World Name"
+
+msgctxt "Property"
+msgid "Spawn X"
+msgstr "Spawn X"
+
+msgctxt "Property"
+msgid "Spawn Y"
+msgstr "Spawn Y"
+
+msgctxt "Property"
+msgid "Spawn Z"
+msgstr "Spawn Z"
+
+msgctxt "Property"
+msgid "和平模式"
+msgstr "Peaceful Mode"
+
+msgctxt "Property"
+msgid "简单模式"
+msgstr "Easy Mode"
+
+msgctxt "Property"
+msgid "普通模式"
+msgstr "Normal Mode"
+
+msgctxt "Property"
+msgid "困难模式"
+msgstr "Hard Mode"
+
+msgctxt "Property"
+msgid "创造模式"
+msgstr "Creative Mode"
+
+msgctxt "Property"
+msgid "冒险模式"
+msgstr "Adventure Mode"
+
+msgctxt "Property"
+msgid "旁观模式"
+msgstr "Spectator Mode"
+
+msgctxt "Property"
+msgid "一般世界"
+msgstr "Normal World"
+
+msgctxt "Property"
+msgid "平坦世界"
+msgstr "Flat World"
+
+# Game rule properties
+msgctxt "Property"
+msgid "Announce Advancements"
+msgstr "Announce Advancements"
+
+msgctxt "Property"
+msgid "Block Explosion Drop Decay"
+msgstr "Block Explosion Drop Decay"
+
+msgctxt "Property"
+msgid "Command Block Output"
+msgstr "Command Block Output"
+
+msgctxt "Property"
+msgid "Disable Elytra Movement Check"
+msgstr "Disable Elytra Movement Check"
+
+msgctxt "Property"
+msgid "Disable Raids"
+msgstr "Disable Raids"
+
+msgctxt "Property"
+msgid "Do Daylight Cycle"
+msgstr "Do Daylight Cycle"
+
+msgctxt "Property"
+msgid "Do Entity Drops"
+msgstr "Do Entity Drops"
+
+msgctxt "Property"
+msgid "Do Fire Tick"
+msgstr "Do Fire Tick"
+
+msgctxt "Property"
+msgid "Do Immediate Respawn"
+msgstr "Do Immediate Respawn"
+
+msgctxt "Property"
+msgid "Do Insomnia"
+msgstr "Do Insomnia"
+
+msgctxt "Property"
+msgid "Do Limited Crafting"
+msgstr "Do Limited Crafting"
+
+msgctxt "Property"
+msgid "Do Mob Loot"
+msgstr "Do Mob Loot"
+
+msgctxt "Property"
+msgid "Do Mob Spawning"
+msgstr "Do Mob Spawning"
+
+msgctxt "Property"
+msgid "Do Patrol Spawning"
+msgstr "Do Patrol Spawning"
+
+msgctxt "Property"
+msgid "Do Tile Drops"
+msgstr "Do Tile Drops"
+
+msgctxt "Property"
+msgid "Do Trader Spawning"
+msgstr "Do Trader Spawning"
+
+msgctxt "Property"
+msgid "Do Vines Spread"
+msgstr "Do Vines Spread"
+
+msgctxt "Property"
+msgid "Do Warden Spawning"
+msgstr "Do Warden Spawning"
+
+msgctxt "Property"
+msgid "Do Weather Cycle"
+msgstr "Do Weather Cycle"
+
+msgctxt "Property"
+msgid "Drowning Damage"
+msgstr "Drowning Damage"
+
+msgctxt "Property"
+msgid "Fall Damage"
+msgstr "Fall Damage"
+
+msgctxt "Property"
+msgid "Fire Damage"
+msgstr "Fire Damage"
+
+msgctxt "Property"
+msgid "Forgive Dead Players"
+msgstr "Forgive Dead Players"
+
+msgctxt "Property"
+msgid "Freeze Damage"
+msgstr "Freeze Damage"
+
+msgctxt "Property"
+msgid "Global Sound Events"
+msgstr "Global Sound Events"
+
+msgctxt "Property"
+msgid "Keep Inventory"
+msgstr "Keep Inventory"
+
+msgctxt "Property"
+msgid "Lava Source Conversion"
+msgstr "Lava Source Conversion"
+
+msgctxt "Property"
+msgid "Log Admin Commands"
+msgstr "Log Admin Commands"
+
+msgctxt "Property"
+msgid "Mob Explosion Drop Decay"
+msgstr "Mob Explosion Drop Decay"
+
+msgctxt "Property"
+msgid "Mob Griefing"
+msgstr "Mob Griefing"
+
+msgctxt "Property"
+msgid "Natural Regeneration"
+msgstr "Natural Regeneration"
+
+msgctxt "Property"
+msgid "Reduced Debug Info"
+msgstr "Reduced Debug Info"
+
+msgctxt "Property"
+msgid "Send Command Feedback"
+msgstr "Send Command Feedback"
+
+msgctxt "Property"
+msgid "Show Death Messages"
+msgstr "Show Death Messages"
+
+msgctxt "Property"
+msgid "Spectators Generate Chunks"
+msgstr "Spectators Generate Chunks"
+
+msgctxt "Property"
+msgid "TNT Explosion Drop Decay"
+msgstr "TNT Explosion Drop Decay"
+
+msgctxt "Property"
+msgid "Universal Anger"
+msgstr "Universal Anger"
+
+msgctxt "Property"
+msgid "Water Source Conversion"
+msgstr "Water Source Conversion"
+
+msgctxt "Property"
+msgid "Max Entity Cramming"
+msgstr "Max Entity Cramming"
+
+msgctxt "Property"
+msgid "Snow Accumulation Height"
+msgstr "Snow Accumulation Height"
+
+msgctxt "Property"
+msgid "Spawn Radius"
+msgstr "Spawn Radius"
+
+msgctxt "Property"
+msgid "Players Sleeping Percentage"
+msgstr "Players Sleeping Percentage"
+
+msgctxt "Property"
+msgid "Random Tick Speed"
+msgstr "Random Tick Speed"
+
+msgctxt "Property"
+msgid "Command Modification Block Limit"
+msgstr "Command Modification Block Limit"
+
+msgctxt "Property"
+msgid "Max Command Chain Length"
+msgstr "Max Command Chain Length"
+
+msgctxt "Property"
+msgid "Day Time"
+msgstr "Day Time"
+
+msgctxt "Property"
+msgid "Seed"
+msgstr "Seed"
+
+msgctxt "Property"
+msgid "FlySpeed"
+msgstr "Fly Speed"
+
+msgctxt "Property"
+msgid "walkSpeed"
+msgstr "Walk Speed"
+
+msgctxt "Property"
+msgid "幸运值"
+msgstr "Luck"
+
+msgctxt "Property"
+msgid "最大生命值"
+msgstr "Max Health"
+
+msgctxt "Property"
+msgid "击退抗性"
+msgstr "Knockback Resistance"
+
+msgctxt "Property"
+msgid "移动加速度"
+msgstr "Movement Speed"
+
+msgctxt "Property"
+msgid "盔甲值"
+msgstr "Armor"
+
+msgctxt "Property"
+msgid "盔甲韧性"
+msgstr "Armor Toughness"
+
+msgctxt "Property"
+msgid "攻击伤害"
+msgstr "Attack Damage"
+
+msgctxt "Property"
+msgid "攻击速度"
+msgstr "Attack Speed"
+
+msgctxt "Property"
+msgid "Flying"
+msgstr "Flying"
+
+msgctxt "Property"
+msgid "instabuild"
+msgstr "Instant Build"
+
+msgctxt "Property"
+msgid "invulnerable"
+msgstr "Invulnerable"
+
+msgctxt "Property"
+msgid "mayBuild"
+msgstr "Can Build"
+
+msgctxt "Property"
+msgid "mayfly"
+msgstr "Can Fly"
+
+msgctxt "Property"
+msgid "movement_speed"
+msgstr "Movement Speed"
+
+msgctxt "Property"
+msgid "图标"
+msgstr "Icon"
+
+msgctxt "Property"
+msgid "名称"
+msgstr "Name"
+
+msgctxt "Property"
+msgid "描述"
+msgstr "Description"
+
+msgctxt "Property"
+msgid "文件位置"
+msgstr "File Location"
+
+msgctxt "Property"
+msgid "种类"
+msgstr "Type"
+
+msgctxt "Property"
+msgid "颜色"
+msgstr "Color"
+
+msgctxt "Property"
+msgid "ID"
+msgstr "ID"
+
+msgctxt "Property"
+msgid "TargetID"
+msgstr "Target ID"
+
+msgctxt "Property"
+msgid "选择方块"
+msgstr "Select Block"
+
+msgctxt "Property"
+msgid "选择要替换成的目标方块"
+msgstr "Select the target block to replace with"
+
+msgctxt "Property"
+msgid "Color File Path"
+msgstr "Color File Path"
+
+msgctxt "Property"
+msgid "笔刷方块"
+msgstr "Brush Block"
+
+msgctxt "Property"
+msgid "笔刷使用的方块"
+msgstr "Block used by brush"
+
+# Operator labels
+msgctxt "Operator"
+msgid "加载模组包"
+msgstr "Load Mod Pack"
