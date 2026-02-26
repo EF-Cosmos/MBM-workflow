@@ -42,6 +42,50 @@
 
 ## 2. 版本兼容性问题
 
+### Blender 5.0+ 插件无法加载
+
+#### 错误：`翻译注册失败: bpy.app.translations.register() argument 2 must be dict, not str`
+
+**现象**：启用插件时报错。
+
+**原因**：Blender 5.0+ 改变了翻译注册 API，不再接受文件路径参数。
+
+**解决方案**：
+- 确保使用最新版本的插件（commit `df419e45` 及以后）。
+- 插件现在使用 `load_translations_dict()` 函数从 .po 文件生成翻译字典。
+
+#### 错误：`Warning: Class 'XXX' does not follow naming conventions`
+
+**现象**：控制台显示 Panel 或 UIList 类命名不符合规范警告。
+
+**原因**：Blender 5.0+ 强制要求 UI 类使用特定命名前缀。
+
+**解决方案**：
+- Panel 类必须使用 `PLUGIN_PT_*` 格式（本插件为 `MBM_PT_*`）
+- UIList 类必须使用 `PLUGIN_UL_*` 格式（本插件为 `MBM_UL_*`）
+- 最新版本已修复所有类命名问题
+
+#### 错误：`'bpy_app_translations' object has no attribute 'translations'`
+
+**现象**：启用插件时报错。
+
+**原因**：尝试访问 Blender 翻译系统的内部字典（该属性不公开）。
+
+**解决方案**：
+- 使用 Blender 标准翻译 API：`bpy.app.translations.pgettext_iface()`
+- 最新版本已修复此问题
+
+#### 界面显示 `Panel|方块` 或 `Property|图标` 格式
+
+**现象**：UI 中同时显示上下文和消息，用竖线分隔。
+
+**原因**：翻译查找失败，返回了原始查找键。
+
+**解决方案**：
+- 确认翻译文件存在于 `i18n/locales/` 目录
+- 检查控制台是否有翻译加载成功消息
+- 最新版本使用回退机制，翻译不存在时返回原始消息
+
 ### 警告：`Java 1.21.x 可能不支持`
 **现象**：在控制台看到关于版本的警告信息。
 

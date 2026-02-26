@@ -197,6 +197,8 @@ Blender 5.0+ 要求 `bpy.app.translations.register()` 的第二个参数必须�
 }
 ```
 
+**注意**：字典的键是 `(context, message)` 元组，值是翻译后的字符串。
+
 ### .po 文件解析
 
 插件使用标准库 `re` 模块解析 .po 文件，无需额外依赖：
@@ -219,6 +221,29 @@ def register_translations():
     if translations_dict:
         bpy.app.translations.register(TRANSLATION_DOMAIN, translations_dict)
 ```
+
+### 翻译查找实现
+
+在运行时查找翻译时，使用 `context|message` 格式的字符串键：
+
+```python
+def _get_translation(msgctxt, message):
+    """带上下文的翻译查找"""
+    if msgctxt:
+        # Blender 使用 context|message 格式查找
+        key = f"{msgctxt}|{message}"
+        translated = bpy.app.translations.pgettext_iface(key)
+        # 翻译不存在时回退到原始消息
+        if "|" in translated and translated.startswith(msgctxt):
+            return message
+        return translated
+    return bpy.app.translations.pgettext_iface(message)
+```
+
+**关键点**：
+- 注册时使用元组键：`('Panel', '方块')`
+- 查找时使用字符串键：`'Panel|方块'`
+- Blender 会自动处理两种格式之间的映射
 
 ### 类命名规范
 

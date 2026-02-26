@@ -95,14 +95,16 @@ Blender 5.0+ 要求所有 UI 类遵循以下命名格式：
 
 ## 翻译系统 API 变化
 
-### Blender 4.x 及更早版本
+### 注册翻译
+
+#### Blender 4.x 及更早版本（已废弃）
 
 ```python
-# 直接传递目录路径
+# 直接传递目录路径（Blender 5.0+ 不再支持）
 bpy.app.translations.register("domain_name", "/path/to/locales")
 ```
 
-### Blender 5.0+
+#### Blender 5.0+
 
 ```python
 # 必须传递翻译字典
@@ -117,6 +119,29 @@ translations = {
 }
 bpy.app.translations.register("domain_name", translations)
 ```
+
+### 查找翻译
+
+在插件代码中使用翻译函数时：
+
+```python
+def _get_translation(msgctxt, message):
+    """带上下文的翻译查找"""
+    if msgctxt:
+        # Blender 使用 context|message 格式
+        key = f"{msgctxt}|{message}"
+        translated = bpy.app.translations.pgettext_iface(key)
+        # 翻译不存在时回退到原始消息
+        if "|" in translated and translated.startswith(msgctxt):
+            return message
+        return translated
+    return bpy.app.translations.pgettext_iface(message)
+```
+
+**注意事项**：
+- `pgettext_iface()` 只接受字符串参数，不接受元组
+- 查找键格式为 `context|message`
+- `bpy.app.translations.translations` 属性不存在，不要尝试访问
 
 ## 验证方法
 
