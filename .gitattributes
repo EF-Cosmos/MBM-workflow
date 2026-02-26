@@ -1,0 +1,22 @@
+# 统一使用 LF 换行符（跨平台最佳实践）
+* text=auto eol=lf
+
+# 二进制文件
+*.blend binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.jar binary
+*.whl binary
+*.nbt binary
+*.schem binary
+*.litematic binary
+*.pkl binary
+*.mo binary
+
+# Windows 批处理脚本保持 CRLF
+*.bat eol=crlf
+*.cmd eol=crlf
+*.ps1 eol=crlf
