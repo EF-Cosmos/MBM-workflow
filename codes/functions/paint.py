@@ -4,6 +4,7 @@ import os
 import time
 from mathutils import Vector
 from mathutils.kdtree import KDTree
+from ..block_map_store import load_block_map
 
 class MBM_OT_PaintBlock(bpy.types.Operator):
     bl_idname = "mbm.paint_block"
@@ -86,7 +87,7 @@ class MBM_OT_PaintBlock(bpy.types.Operator):
             return {'CANCELLED'}
         
         try:
-            name_to_id_map = eval(text_data.as_string()) 
+            name_to_id_map = load_block_map(text_data)
         except:
              self.report({'ERROR'}, "Blocks.py 格式错误")
              return {'CANCELLED'}

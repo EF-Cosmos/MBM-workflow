@@ -2,6 +2,7 @@ import os
 import re
 import bpy
 from . import dependency_manager
+from .block_map_store import load_block_map
 from .functions.tip import ShowMessageBox
 
 # 使用依赖管理器导入
@@ -66,7 +67,7 @@ class ExportSchem(bpy.types.Operator):
             ShowMessageBox("未注册方块，无法导出。","白给的插件")
 
         # 从文本数据中读取字典 id_map
-        self.block_id_name_map = eval(text_data.as_string())
+        self.block_id_name_map = load_block_map(text_data)
 
         for obj in selected_objects:
             if obj.type == 'MESH':
@@ -295,7 +296,7 @@ class ExportToSave(bpy.types.Operator):
             ShowMessageBox("未注册方块，无法导出。","白给的插件")
 
         # 从文本数据中读取字典 id_map
-        self.block_id_name_map = eval(text_data.as_string())
+        self.block_id_name_map = load_block_map(text_data)
         for obj in selected_objects:
             if obj.type == 'MESH':
                 # 检查是否存在名为“模型转换”的修改器

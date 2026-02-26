@@ -10,6 +10,7 @@ from .classification_files.block_type import exclude
 from .schem import schem_chunk,schem_liquid,schem,remove_brackets,separate_vertices_by_blockid,separate_vertices_by_chunk,litematic_to_mesh
 from .functions.mesh_to_mc import create_mesh_from_dictionary,create_or_clear_collection
 from .register import register_blocks
+from .block_map_store import load_block_map, save_block_map
 from . import dependency_manager
 import json
 import threading
@@ -267,7 +268,7 @@ class ReloadBlocks(bpy.types.Operator):
             return {'FINISHED'}
 
         try:
-            id_map = eval(text_data.as_string())
+            id_map = load_block_map(text_data)
         except Exception as e:
             self.report({'ERROR'}, f"无法解析方块数据: {e}")
             return {'CANCELLED'}
@@ -316,12 +317,7 @@ class ReloadBlocks(bpy.types.Operator):
                     del id_map[id_str]
             
             # 写回 Blocks.py
-            text_data.clear()
-            text_data.write("{\n")
-            # 保持排序以便查看
-            for key, value in sorted(id_map.items(), key=lambda item: item[1]):
-                text_data.write(f"    \"{key}\": {value},\n")
-            text_data.write("}\n")
+            save_block_map(text_data, id_map, sort_by_value=True)
             
             context.view_layer.update()
             self.report({'INFO'}, f"已清理 {len(to_remove)} 个失效方块记录。下次导入时将重新加载。")

@@ -14,6 +14,7 @@ import random
 import importlib
 
 from .. import config
+from .block_map_store import load_block_map
 
 
 def get_mc_version(context):
@@ -70,7 +71,7 @@ def get_block_items(self, context):
     try:
         text_data = bpy.data.texts.get("Blocks.py")
         if text_data:
-            block_map = eval(text_data.as_string())
+            block_map = load_block_map(text_data)
             for name, id_val in block_map.items():
                 items.append((str(id_val), name, f"ID: {id_val}"))
             items.sort(key=lambda x: x[1])
@@ -210,8 +211,16 @@ class Property(bpy.types.PropertyGroup):
         description="选择一个颜色字典",
         items=(),
     )
-    bpy.types.Scene.separate_vertices_by_blockid = bpy.props.BoolProperty(name="separate_vertices_by_blockid", default=False)
-    bpy.types.Scene.separate_vertices_by_chunk = bpy.props.BoolProperty(name="separate_vertices_by_blockid", default=False)
+    bpy.types.Scene.separate_vertices_by_blockid = bpy.props.BoolProperty(
+        name="按方块状态分离",
+        description="将导入的结构按照方块类型分离，每种方块类型生成一个独立的 Blender 对象",
+        default=False
+    )
+    bpy.types.Scene.separate_vertices_by_chunk = bpy.props.BoolProperty(
+        name="按区块分离",
+        description="将导入的结构按照 Minecraft 区块（16x16x16）分离，每个区块生成一个独立的 Blender 对象",
+        default=False
+    )
     bpy.types.Scene.schem_filename = bpy.props.StringProperty(name=".schem文件名", default="file")
 
     # Minecraft 版本配置
@@ -671,6 +680,10 @@ def unzip_mods_files():
 def unzip_resourcepacks_files():
     # 指定的文件夹路径
     folder_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"resourcepacks")
+    
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+        return
 
     # 临时文件夹路径
     temp_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"temp","资源包")

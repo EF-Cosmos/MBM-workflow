@@ -2,6 +2,7 @@ import bpy
 import re
 from .block import block
 from .blockstates import get_model
+from .block_map_store import get_block_map_text, load_block_map_safe, save_block_map
 
 def create_or_clear_collection(collection_name):
     # 检查集合是否已存在
@@ -25,17 +26,10 @@ def register_blocks(ids):
     collection.hide_viewport = False
     
     # 尝试从 .blend 文件中获取文本数据
-    text_data = bpy.data.texts.get("Blocks.py")
-    if not text_data:  # 如果文本数据不存在，则创建一个新的文本数据对象
-        text_data = bpy.data.texts.new("Blocks.py")
+    text_data = get_block_map_text(create=True)
 
     # 从文本数据中读取字典 id_map
-    id_map_content = text_data.as_string()
-    try:
-        id_map = eval(id_map_content)  # 尝试解析文件内容为字典
-        
-    except SyntaxError:  # 如果解析失败，即文件内容不是有效的Python字典表示
-       id_map = {}  # 初始化为空字典
+    id_map = load_block_map_safe(text_data, default={})
 
     # 更新 id_map
     if id_map and collection.objects: # 如果id_map不为空
@@ -70,11 +64,7 @@ def register_blocks(ids):
             next_id += 1  # 修改这里，确保每次迭代都递增 next_id
 
     # 将更新后的 id_map 字典内容以分行形式写入到当前 .blend 文件中的文本数据中
-    text_data.clear()  # 清除原始文本数据内容
-    text_data.write("{\n")  # 开始写入字典
-    for key, value in id_map.items():  # 将每对 id 都写入新的一行
-        text_data.write(f"    \"{key}\": {value},\n")
-    text_data.write("}\n")  # 结束写入字典
+    save_block_map(text_data, id_map)
 
     collection.hide_render = True
     collection.hide_viewport = True
