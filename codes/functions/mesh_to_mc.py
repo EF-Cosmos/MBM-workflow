@@ -625,6 +625,144 @@ class BlockBlender(bpy.types.Operator):
 
 
 
+
+def _grid_round(value):
+    return int(round(float(value)))
+
+
+class MergeSchemPointClouds(bpy.types.Operator):
+    bl_idname = "mbm.merge_schem_pointclouds"
+    bl_label = "Merge Schem Point Clouds"
+    bl_description = "Merge selected point clouds and regularize to integer grid"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        selected_meshes = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        return context.mode == 'OBJECT' and len(selected_meshes) >= 2
+
+    def execute(self, context):
+        selected_meshes = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        active_obj = context.active_object if context.active_object in selected_meshes else selected_meshes[0]
+
+        valid_objects = []
+        skipped_objects = []
+        for obj in selected_meshes:
+            if 'blockid' in obj.data.attributes:
+                valid_objects.append(obj)
+            else:
+                skipped_objects.append(obj.name)
+
+        if len(valid_objects) < 2:
+            self.report({'WARNING'}, "Need at least 2 point cloud meshes with blockid attribute")
+            return {'CANCELLED'}
+
+        if active_obj in valid_objects:
+            ordered_objects = [obj for obj in valid_objects if obj != active_obj] + [active_obj]
+        else:
+            ordered_objects = valid_objects
+
+        default_biome = (0.149, 0.660, 0.10, 0.00)
+        point_map = {}
+        source_nodes_modifier = None
+        total_points = 0
+
+        for obj in ordered_objects:
+            if source_nodes_modifier is None:
+                source_nodes_modifier = next((modifier for modifier in obj.modifiers if modifier.type == 'NODES'), None)
+
+            blockid_data = obj.data.attributes['blockid'].data
+            waterlogged_attr = obj.data.attributes.get('waterlogged')
+            biome_attr = obj.data.attributes.get('biome')
+            waterlogged_data = waterlogged_attr.data if waterlogged_attr is not None else None
+            biome_data = biome_attr.data if biome_attr is not None else None
+            world_matrix = obj.matrix_world
+
+            for vertex in obj.data.vertices:
+                blockid = int(blockid_data[vertex.index].value)
+                if blockid == 0:
+                    continue
+
+                world_co = world_matrix @ vertex.co
+                grid_coord = (
+                    _grid_round(world_co.x),
+                    _grid_round(world_co.y),
+                    _grid_round(world_co.z),
+                )
+                waterlogged = int(waterlogged_data[vertex.index].value) if waterlogged_data else 0
+                biome = tuple(biome_data[vertex.index].color) if biome_data else default_biome
+
+                point_map[grid_coord] = (blockid, waterlogged, biome)
+                total_points += 1
+
+        if not point_map:
+            self.report({'WARNING'}, "No valid block points found to merge")
+            return {'CANCELLED'}
+
+        sorted_coords = sorted(point_map.keys())
+        min_coord = (
+            min(coord[0] for coord in sorted_coords),
+            min(coord[1] for coord in sorted_coords),
+            min(coord[2] for coord in sorted_coords),
+        )
+        local_vertices = [
+            (
+                coord[0] - min_coord[0],
+                coord[1] - min_coord[1],
+                coord[2] - min_coord[2],
+            )
+            for coord in sorted_coords
+        ]
+
+        merged_name = f"{active_obj.name}_Merged"
+        merged_mesh = bpy.data.meshes.new(name=merged_name)
+        merged_mesh.attributes.new(name='blockid', type="INT", domain="POINT")
+        merged_mesh.attributes.new(name='waterlogged', type="INT", domain="POINT")
+        merged_mesh.attributes.new(name='biome', type="FLOAT_COLOR", domain="POINT")
+        merged_mesh.from_pydata(local_vertices, [], [])
+
+        merged_obj = bpy.data.objects.new(merged_name, merged_mesh)
+        target_collection = active_obj.users_collection[0] if active_obj.users_collection else context.scene.collection
+        target_collection.objects.link(merged_obj)
+        merged_obj.location = min_coord
+
+        blockid_attr = merged_mesh.attributes['blockid'].data
+        waterlogged_attr = merged_mesh.attributes['waterlogged'].data
+        biome_attr = merged_mesh.attributes['biome'].data
+        for i, coord in enumerate(sorted_coords):
+            blockid, waterlogged, biome = point_map[coord]
+            blockid_attr[i].value = blockid
+            waterlogged_attr[i].value = waterlogged
+            biome_attr[i].color = biome
+
+        if source_nodes_modifier is not None:
+            new_modifier = merged_obj.modifiers.new(source_nodes_modifier.name, 'NODES')
+            new_modifier.node_group = source_nodes_modifier.node_group
+            for key in source_nodes_modifier.keys():
+                if key == '_RNA_UI':
+                    continue
+                try:
+                    new_modifier[key] = source_nodes_modifier[key]
+                except (TypeError, KeyError):
+                    continue
+
+        for obj in valid_objects:
+            bpy.data.objects.remove(obj, do_unlink=True)
+
+        bpy.ops.object.select_all(action='DESELECT')
+        merged_obj.select_set(True)
+        context.view_layer.objects.active = merged_obj
+        merged_mesh.update()
+
+        overlap_points = total_points - len(sorted_coords)
+        skipped_info = f", skipped {len(skipped_objects)} objects" if skipped_objects else ""
+        self.report(
+            {'INFO'},
+            f"Merged {len(valid_objects)} objects into {len(sorted_coords)} points"
+            f" ({overlap_points} overlaps resolved){skipped_info}",
+        )
+        return {'FINISHED'}
+
 class MergeOverlappingFaces(bpy.types.Operator):
     bl_idname = "mbm.merge_overlapping_faces"
     bl_label = "合并重叠面"
@@ -674,7 +812,7 @@ class MergeOverlappingFaces(bpy.types.Operator):
 
 
 
-classes=[ObjToBlocks,BlockBlender,MergeOverlappingFaces]
+classes=[ObjToBlocks,BlockBlender,MergeSchemPointClouds,MergeOverlappingFaces]
 
 
 def register():

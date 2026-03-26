@@ -220,6 +220,10 @@ class MBM_PT_edit_panel(bpy.types.Panel):
         row = layout.row()
         row.operator("mbm.switch_blocks_panel", text="替换方块")
         row = layout.row()
+        row.operator(
+            "mbm.merge_schem_pointclouds", text="Merge + Regularize Point Cloud"
+        )
+        row = layout.row()
         row.label(text="可视化编辑：")
         row = layout.row()
         row.prop(scene.my_properties, "brush_block_enum", text="")

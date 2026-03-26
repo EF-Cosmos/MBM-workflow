@@ -1,8 +1,8 @@
-﻿# 方块笔刷功能修复文档
+# 方块笔刷功能修复文档
 
 ## 概述
 
-方块笔刷 (Block Brush) 是一个在 3D 视图中直接绘制方块的交互式工具。它允许用户在导入的点云对象上修改方块的 blockid 属性，几何节点会自动更新显示对应的方块模型�?
+方块笔刷 (Block Brush) 是一个在 3D 视图中直接绘制方块的交互式工具。它允许用户在导入的点云对象上修改方块的 blockid 属性，几何节点会自动更新显示对应的方块模型。
 
 **文件位置**: `codes/functions/brush.py`
 
@@ -12,44 +12,44 @@
 
 ### 使用场景
 
-方块笔刷**仅在几何节点修改器未应用�?*有效。它直接操作点云数据（顶点的 blockid 属性），几何节点会实时响应这些变化�?
+方块笔刷**仅在几何节点修改器未应用时**有效。它直接操作点云数据（顶点的 blockid 属性），几何节点会实时响应这些变化。
 
 ### 操作方式
 
 | 按键 | 功能 |
 |------|------|
 | 左键 | 将选中的方块类型绘制到点击位置 |
-| Shift + 左键 | 吸取点击位置的方�?ID |
-| 右键 / ESC | 退出笔刷模�?|
+| Shift + 左键 | 吸取点击位置的方块 ID |
+| 右键 / ESC | 退出笔刷模式 |
 
 ### 前置条件
 
-1. 选择一个带�?`blockid` 属性的点云对象
-2. `blockid` 属性的�?(domain) 必须�?`POINT`
-3. 属性数据不能为�?
-4. 几何节点修改器必�?*未应�?*（可以存在，但不能应用）
+1. 选择一个带有 `blockid` 属性的点云对象
+2. `blockid` 属性的域 (domain) 必须是 `POINT`
+3. 属性数据不能为空
+4. 几何节点修改器必须**未应用**（可以存在，但不能应用）
 
 ---
 
 ## 修复历史
 
-### 问题 1: TypeError - `__init__` 参数不匹�?
+### 问题 1: TypeError - `__init__` 参数不匹配
 
 **错误信息**:
 ```
 TypeError: MBM_OT_BlockBrush.__init__() takes 1 positional argument but 2 were given
 ```
 
-**原因**: Blender 5.0+ �?`bpy.types.Operator` 基类在初始化时传递了额外参数，但子类只定义了 `__init__(self)`�?
+**原因**: Blender 5.0+ 中 `bpy.types.Operator` 基类在初始化时传递了额外参数，但子类只定义了 `__init__(self)`。
 
 **修复** (line 12):
 ```python
-# 修复�?
+# 修复前
 def __init__(self):
     self.kd_tree = None
     self.target_obj = None
 
-# 修复�?
+# 修复后
 def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
     self.kd_tree = None
@@ -58,7 +58,7 @@ def __init__(self, *args, **kwargs):
 
 ---
 
-### 问题 2: IndexError - 属性数据访问越�?
+### 问题 2: IndexError - 属性数据访问越界
 
 **错误信息**:
 ```
@@ -67,45 +67,45 @@ IndexError: bpy_prop_collection[index]: index 988 out of range, size 0
 
 **根本原因**:
 
-1. **属性数据未检�?*: 原代码只检查属性是否存在，未检查属性数据是否为�?
-2. **ray_cast 索引不匹�?*:
-   - `scene.ray_cast(depsgraph, ...)` �?evaluated 对象上执�?
-   - 返回�?`index` 是实例化网格的索引，而非原始点云的索�?
+1. **属性数据未检查**: 原代码只检查属性是否存在，未检查属性数据是否为空
+2. **ray_cast 索引不匹配**:
+   - `scene.ray_cast(depsgraph, ...)` 在 evaluated 对象上执行
+   - 返回的 `index` 是实例化网格的索引，而非原始点云的索引
    - KDTree 基于原始点云构建，两者索引不匹配
 
-**数据流示�?*:
+**数据流示意**:
 ```
-┌─────────────────�?    ┌──────────────────�?    ┌─────────────────�?
-�? 原始点云对象    �?──�?�? 几何节点修改�?  �?──�?�? 实例化网�?     �?
-�? (obj.data)     �?    �? (未应用状�?     �?    �? (evaluated)    �?
-├─────────────────�?    ├──────────────────�?    ├─────────────────�?
-�?�?vertices[]    �?    �? 读取 blockid     �?    �?�?vertices[]    �?
-�?�?blockid.data  �?    �? 实例化方块模�?  �?    �?�?blockid.data  �?
-└─────────────────�?    └──────────────────�?    └─────────────────�?
-        �?                                               �?
-        �?                                               �?
-   KDTree 基于此构�?                         ray_cast 返回此索�?
-   (正确的顶点索�?                              (错误的索�?)
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│ 原始点云对象    │───>│ 几何节点修改器   │───>│ 实例化网格      │
+│ (obj.data)      │    │ (未应用状态)     │    │ (evaluated)     │
+├─────────────────┤    ├──────────────────┤    ├─────────────────┤
+│ vertices[]      │    │ 读取 blockid     │    │ vertices[]      │
+│ blockid.data    │    │ 实例化方块模型   │    │ 无 blockid.data │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+        │                                               │
+        │                                               │
+   KDTree 基于此构建                            ray_cast 返回此索引
+   (正确的顶点索引)                              (错误的索引)
 ```
 
 ---
 
 ## 修复详情
 
-### 修复 1: 增强 invoke 方法检�?(line 35-60)
+### 修复 1: 增强 invoke 方法检查 (line 35-60)
 
 添加了完整的属性验证：
 
 ```python
-# 1. 基础类型检�?
+# 1. 基础类型检查
 if not obj or obj.type != 'MESH':
     return {'CANCELLED'}
 
-# 2. 属性存在性检�?
+# 2. 属性存在性检查
 if 'blockid' not in obj.data.attributes:
     return {'CANCELLED'}
 
-# 3. 属性域检�?
+# 3. 属性域检查
 blockid_attr = obj.data.attributes['blockid']
 if blockid_attr.domain != 'POINT':
     return {'CANCELLED'}
@@ -118,20 +118,20 @@ if not blockid_attr.data or len(blockid_attr.data) == 0:
 
 ### 修复 2: 修正 brush_action 方法 (line 81-122)
 
-**核心改动**: 使用原始对象进行 ray_cast，而非 evaluated 对象�?
+**核心改动**: 使用原始对象进行 ray_cast，而非 evaluated 对象。
 
 ```python
-# 修复�?
+# 修复前
 depsgraph = context.evaluated_depsgraph_get()
 result, location, normal, index, obj, matrix = scene.ray_cast(depsgraph, origin, direction)
-# index �?evaluated 对象的索�?�?错误�?
+# index 是 evaluated 对象的索引（错误）
 
-# 修复�?
+# 修复后
 result, location, normal, index = self.target_obj.ray_cast(origin, direction, distance=1.70141e+38)
-# index 是原始对象的索引 �?正确�?
+# index 是原始对象的索引（正确）
 ```
 
-**添加边界检�?*:
+**添加边界检查**:
 ```python
 blockid_data = self.target_obj.data.attributes['blockid'].data
 
@@ -143,53 +143,53 @@ else:
 
 **正确的数据更新通知**:
 ```python
-# 修复�?
+# 修复前
 self.target_obj.data.update()
 
-# 修复�?
+# 修复后
 self.target_obj.data.update_tag()  # 触发几何节点重新计算
 ```
 
 ---
 
-## 技术要�?
+## 技术要点
 
 ### 几何节点与点云的交互
 
 1. **点云创建** (`codes/schem.py:126-130`):
    ```python
-   mesh.from_pydata(vertices, [], [])  # 只有顶点，无�?�?
+   mesh.from_pydata(vertices, [], [])  # 只有顶点，无边面
    mesh.attributes.new(name='blockid', type="INT", domain="POINT")
    ```
 
 2. **几何节点读取**:
-   - Schem 节点组读取每个顶点的 `blockid` 属�?
-   - 根据 ID �?"Blocks" 集合实例化对应方�?
+   - Schem 节点组读取每个顶点的 `blockid` 属性
+   - 根据 ID 从 `Blocks` 集合实例化对应方块
 
 3. **实时更新机制**:
    - 修改 `blockid` 属性后调用 `update_tag()`
-   - 几何节点自动检测到属性变�?
+   - 几何节点自动检测到属性变化
    - 重新执行实例化，显示新的方块
 
-### ray_cast 的两种模�?
+### ray_cast 的两种模式
 
 | 模式 | 方法 | 返回索引 | 适用场景 |
 |------|------|----------|----------|
-| 场景�?| `scene.ray_cast(depsgraph, ...)` | evaluated 对象索引 | 应用了修改器的网�?|
-| 对象�?| `obj.ray_cast(origin, direction)` | 原始对象索引 | 未应用修改器的点�?|
+| 场景级 | `scene.ray_cast(depsgraph, ...)` | evaluated 对象索引 | 应用了修改器的网格 |
+| 对象级 | `obj.ray_cast(origin, direction)` | 原始对象索引 | 未应用修改器的点云 |
 
 ---
 
 ## 验证步骤
 
-1. 打开 Blender，加载插�?
-2. 导入 `.schem` 文件（创建带几何节点修改器的点云对象�?
+1. 打开 Blender，加载插件
+2. 导入 `.schem` 文件（创建带几何节点修改器的点云对象）
 3. **确保几何节点修改器未应用**
-4. 选择点云对象，点�?启动方块笔刷"
-5. 测试以下操作�?
-   - [ ] 左键点击方块（应更新显示�?
-   - [ ] Shift+左键吸取方块 ID（应显示 ID 提示�?
-   - [ ] 右键退出笔�?
+4. 选择点云对象，点击 "启动方块笔刷"
+5. 测试以下操作:
+   - [ ] 左键点击方块（应更新显示）
+   - [ ] Shift+左键吸取方块 ID（应显示 ID 提示）
+   - [ ] 右键退出笔刷
 
 ---
 
@@ -201,21 +201,17 @@ self.target_obj.data.update_tag()  # 触发几何节点重新计算
 
 ### Q: 笔刷修改后方块没有立即更新？
 
-**A**: 确保：
+**A**: 确保:
 1. 几何节点修改器处于启用状态（眼睛图标）
 2. 对象的 `blockid` 属性域是 `POINT`
 3. 使用了 `update_tag()` 而非 `update()`
 
-### Q: 出现"索引超出范围"错误？
+### Q: 出现 "索引超出范围" 错误？
 
-**A**: 检查：
+**A**: 检查:
 1. 对象是否应用了几何节点修改器
-2. `blockid` 属性数据是否为空（在 Blender 属性面板中查看对象属性→属性）
+2. `blockid` 属性数据是否为空（在 Blender 属性面板中查看对象数据属性）
 3. KDTree 是否基于正确的顶点数据构建
-
-### Q: 点击方块边界时选中了错误的方块？
-
-**A**: 这是边界判定问题，已在 2026-02-01 修复。详见下方"问题 3"。
 
 ---
 
@@ -230,126 +226,4 @@ self.target_obj.data.update_tag()  # 触发几何节点重新计算
 
 ## 修复日期
 
-- 2025-01-15 - 初始修复（TypeError、IndexError）
-- 2026-02-01 - 边界判定问题修复
-
----
-
-## 问题 3: 边界判定错误 - 点击方块边界时选中错误方块
-
-**现象**: 当点击方块的边界面（如两个方块的交界处）时，笔刷可能选中了相邻的方块而不是预期的方块。
-
-**根本原因**:
-
-1. **边界坐标的歧义性**: 
-   - 点云顶点 `(x, y, z)` 代表方块的原点角
-   - 方块占据空间 `[x, x+1) × [y, y+1) × [z, z+1)`
-   - 当射线击中点正好在边界（如 `x=3.0`）时，无法确定属于坐标 2 还是 3 的方块
-
-2. **`int()` 对负数处理不正确**:
-   - `int(-0.5) = 0`（向零取整）
-   - 正确应该是 `math.floor(-0.5) = -1`（向下取整）
-
-**问题示意图**:
-```
-                    法线 ↑
-                    ─────
-     ┌─────────────┬─────────────┐
-     │             │             │
-     │   方块 A    │   方块 B    │
-     │   (2,0,0)   │   (3,0,0)   │
-     │             │             │
-     └─────────────┴─────────────┘
-                   ↑
-              击中点 x=3.0
-
-原逻辑: int(3.0) = 3 → 方块 B（可能不是用户想要的）
-```
-
-**修复方案** (line 77-112):
-
-1. **利用表面法线偏移**: 将击中点沿法线反方向偏移一小段距离，进入方块内部
-2. **使用 `math.floor()` 替代 `int()`**: 正确处理负坐标
-
-```python
-def brush_action(self, context, event):
-    import math
-    
-    # ... 射线检测代码 ...
-    
-    if result and obj == self.target_obj:
-        # 将击中位置和法线转换到对象局部空间
-        matrix_inv = self.target_obj.matrix_world.inverted()
-        local_location = matrix_inv @ location
-        local_normal = matrix_inv.to_3x3() @ normal  # 法线只需要旋转
-
-        # 关键：沿法线反方向偏移，进入方块内部
-        epsilon = 0.001
-        adjusted_location = local_location - local_normal.normalized() * epsilon
-
-        # 使用 floor 正确处理负坐标
-        block_coord = (
-            math.floor(adjusted_location.x),
-            math.floor(adjusted_location.y),
-            math.floor(adjusted_location.z)
-        )
-```
-
-**原理说明**:
-- 法线指向方块表面外部
-- 减去法线方向 = 向内偏移
-- 偏移后的点一定在被击中方块的内部
-- `math.floor()` 对任意实数正确向下取整
-
-**替代方案 - KDTree 最近邻搜索**:
-
-如果点云顶点不在整数坐标，可以使用 KDTree 查找最近顶点：
-
-```python
-from mathutils import kdtree
-
-# 在 invoke 中构建 KDTree：
-self.kd = kdtree.KDTree(len(mesh.vertices))
-for i, v in enumerate(mesh.vertices):
-    self.kd.insert(v.co, i)
-self.kd.balance()
-
-# 在 brush_action 中查找：
-co, vertex_index, dist = self.kd.find(adjusted_location)
-if dist < 1.0:  # 在合理范围内
-    # 直接使用 vertex_index，无需坐标取整
-```
-
----
-
-## 技术细节：坐标系统与方块空间
-
-### 点云顶点与方块的关系
-
-```
-点云顶点坐标 (x, y, z) ─→ 几何节点实例化 ─→ 方块模型占据 [x,x+1) × [y,y+1) × [z,z+1)
-```
-
-### 创建点云时的坐标计算
-
-参考 `codes/schem.py:113`:
-```python
-vertices.append((x-min_coords[0], -(z-min_coords[2]), y-min_coords[1]))
-```
-
-- Minecraft 坐标系 (X, Y, Z) → Blender 坐标系 (X, -Z, Y)
-- 顶点坐标相对于原点偏移
-
-### 射线击中后的坐标转换流程
-
-```
-1. 世界空间击中点 (location)
-       ↓ matrix_inv @
-2. 局部空间击中点 (local_location)
-       ↓ - normal * epsilon
-3. 调整后位置 (adjusted_location)
-       ↓ math.floor()
-4. 方块坐标 (block_coord)
-       ↓ vertex_map.get()
-5. 顶点索引 (vertex_index)
-```
+2025-01-15
