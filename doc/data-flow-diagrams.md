@@ -198,9 +198,12 @@ flowchart TD
 
 | 函数 | 文件位置 | 作用 |
 |------|----------|------|
-| `schem()` | `codes/schem.py:29-136` | 创建点云并应用几何节点 |
-| `schem_chunk()` | `codes/schem.py:139-172` | 分区块处理（多进程） |
-| `schem_liquid()` | `codes/schem.py:176-447` | 流体方块处理 |
+| `schem()` | `codes/schem.py` | 创建点云并应用几何节点 |
+| `schem_chunk()` | `codes/schem.py` | 分区块处理（多进程，通过 `chunk_index` 参数指定区块） |
+| `schem_liquid()` | `codes/schem.py` | 流体方块处理 |
+| `merge_chunks()` | `codes/schem.py` | 合并多个区块的 chunk*.pkl 文件 |
+| `write_var_cache()` | `codes/importfile.py` | 将多进程共享参数写入 var.json |
+| `MultiprocessPool` | `codes/importfile.py` | 多进程编排操作符（分块、启动子进程、合并） |
 
 ### 顶点属性结构
 

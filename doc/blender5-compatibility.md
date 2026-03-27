@@ -57,7 +57,7 @@ def register_translations():
 | 旧类名 | 新类名 | 类型 |
 |--------|--------|------|
 | `MainPanel` | `MBM_PT_main_panel` | Panel |
-| `BlockPanel` | `MBM_PT_block_panel` | Panel |
+| `BlockPanel` | *已移除*（合并到导入面板） | Panel |
 | `ImportPanel` | `MBM_PT_import_panel` | Panel |
 | `ExportPanel` | `MBM_PT_export_panel` | Panel |
 | `CreateLevel` | `MBM_PT_create_level` | Panel |
@@ -161,6 +161,35 @@ def _get_translation(msgctxt, message):
 ### 2. 检查 UI 面板
 
 所有面板应该正常显示，没有布局错乱或缺失。
+
+## TODO: Blender 5.1 (Python 3.13) 依赖迁移
+
+Blender 5.1 内置 Python 升级到 3.13，当前 wheels 目录中的 cp311 C 扩展包无法直接使用。
+
+### 依赖 cp313 兼容性检查结果（2026-03-27）
+
+**纯 Python 包（py3-none-any）— 全部兼容，无需变更**：
+- amulet-core 1.9.33、pymctranslate 1.2.39、portalocker 3.2.0、platformdirs 4.5.1、litemapy 0.9.0b0、nbtlib 2.0.4
+
+**C 扩展包**：
+
+| 包名 | 当前版本 | cp313 win_amd64 wheel | 所需动作 |
+|------|---------|----------------------|---------|
+| pillow | 12.1.0 | 有 (12.1.1) | 升级版本 |
+| lz4 | 4.4.5 | 有 | 仅替换 wheel 文件 |
+| pywin32 | 311 | 有 | 仅替换 wheel 文件（或移除，已 monkey patch 绕过） |
+| **amulet-nbt** | 2.1.5 → 2.1.6 | **无**（最高 cp312） | 需自编译或等上游 |
+| **amulet-leveldb** | 1.0.2 → 1.0.3 | **无**（最高 cp312） | 需自编译或等上游 |
+
+**阻塞项**：amulet-nbt 和 amulet-leveldb 尚未发布 cp313 预编译 wheel。两个包都有 sdist 源码可用，可选择自编译或等待 Amulet-Team 更新。
+
+### 待办事项
+
+- [ ] 跟进 [Amulet-Team/Amulet-NBT](https://github.com/Amulet-Team/Amulet-NBT) 和 [Amulet-Team/Amulet-LevelDB](https://github.com/Amulet-Team/Amulet-LevelDB) 的 cp313 wheel 发布
+- [ ] 替换 pillow → 12.1.1、lz4、pywin32 的 cp313 wheel
+- [ ] 更新 `blender_manifest.toml` 中的 wheel 文件名
+- [ ] amulet-nbt/amulet-leveldb 若仍无预编译 wheel，尝试用 Blender 5.1 的 Python 3.13 从 sdist 编译
+- [ ] 在 Blender 5.1 中完整测试导入/导出流程
 
 ## 相关文档
 

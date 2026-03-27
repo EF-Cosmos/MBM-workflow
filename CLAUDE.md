@@ -31,11 +31,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **ObjToBlocks 节点组**: 普通网格转方块预览
 - **模型转换节点组**: 完整的网格到方块转换，支持楼梯、台阶等特殊方块
 
-### 多进程支持（实验性）
-位于 `multiprocess/` 目录：
-- `multiprocess_pool.py`: 进程池管理
-- `schem_mp.py`: 多进程 Schem 处理逻辑
-- 此模块用于加速大型文件的处理，目前可能未完全启用
+### 多进程支持
+位于 `multiprocess/` 目录，用于加速大型 `.schem` 文件的导入：
+- `schem_mp.py`: 子进程脚本，处理单个区块（通过环境变量 `MBM_CHUNK_INDEX` 指定区块编号）
+- `schem_liquid_mp.py`: 子进程脚本，独立处理流体数据
+
+**工作流程**：
+1. `ImportSchem` 导入时自动判断方块数量是否超过阈值（`sna_minsize`）
+2. 超过阈值时自动调用 `MultiprocessPool`（`mbm.multiprocess_pool`）操作符
+3. 沿 X 轴将数据均分为 N 个区块（N = `sna_processnumber`）
+4. 将共享参数写入 `schemcache/var.json`（JSON 格式，替代不安全的 pickle）
+5. 通过 `subprocess.Popen` 启动 N 个 Blender 后台实例并行处理
+6. 各子进程将结果写入 `schemcache/chunk{i}.pkl`
+7. 主进程通过 `bpy.app.timers.register` 轮询等待子进程完成
+8. 所有子进程完成后，调用 `merge_chunks()` 合并数据并创建最终网格
+
+**配置**（`AddonPreferences`）：
+- `sna_processnumber`: 最大进程数（默认 6，CPU 核心数的一半）
+- `sna_minsize`: 多进程阈值（默认 1,000,000 方块）
 
 ## Minecraft 版本转换系统
 
@@ -195,6 +208,18 @@ bpy.ops.mbm.merge_overlapping_faces()
 3. 节点根据顶点的 `blockid` 属性实例化对应方块
 4. 应用修改器后可使用"合并重叠面"优化面数
 
+### 多进程导入工作流
+1. 导入 .schem 时计算总方块数，超过阈值自动切换多进程
+2. `MultiprocessPool` 操作符将 X 轴范围均分为 N 个区块
+3. 共享参数写入 `schemcache/var.json`（JSON 格式）
+4. 通过 `subprocess.Popen` 启动 N 个 Blender 后台实例（`--background --python`）
+5. 各子进程读取 `var.json`，通过 `MBM_CHUNK_INDEX` 环境变量获取区块编号
+6. `schem_chunk()` 处理各区块，结果写入 `schemcache/chunk{i}.pkl`
+7. 流体由独立子进程处理，结果保存为 `schemcache/liquid.blend`
+8. 主进程通过 `bpy.app.timers.register` 轮询子进程状态
+9. 全部完成后 `merge_chunks()` 合并所有 chunk 文件，写入 `id_map.pkl`
+10. `schem(level, chunks, cached=True)` 读取合并数据创建最终网格
+
 ### Litematic 文件格式支持
 - **库**: 使用 litemapy (v0.9.0b0) 解析 Litematica 模组的 .litematic 文件
 - **多区域处理**: 每个 litematic 区域创建独立的 Blender 对象（命名：`文件名_区域名`）
@@ -239,13 +264,16 @@ wheels = [
 5. **不可逆操作**: 应用几何节点修改器后无法恢复到点云编辑状态
 6. **版本限制**: PyMCTranslate 1.2.39 最高支持 Java 1.21.9，配置超过此版本会失败
 7. **私有 API**: 避免使用 `amulet_nbt._load_nbt` 等私有模块，使用公共 API `amulet_nbt.load()`
+8. **多进程缓存**: 多进程生成的 `schemcache/var.json` 和 `chunk*.pkl` 是临时文件，不应手动修改。`var.json` 使用 JSON 格式（非 pickle），安全可读
+9. **线程安全**: 不要在子线程中调用 Blender API（如 `bpy.data.images`），所有 Blender API 调用必须在主线程执行。后台耗时操作应使用 `subprocess` 或 `bpy.app.timers`
 
 ## 开发提示
 
 - 添加新方块类型时需更新 `codes/classification_files/block_type.py`
 - 修改 UI 需编辑 `ui.py`
 - 几何节点修改需编辑外部 `blend_files/GeometryNodes.blend`
-- 使用 `bpy.app.timers.register()` 处理耗时操作的完成回调
+- 使用 `bpy.app.timers.register()` 处理耗时操作的完成回调（回调返回 `float` 秒数表示下次调用间隔，返回 `None` 停止计时器）
+- **不要在子线程中调用 Blender API**，使用 `subprocess` 替代需要并行的计算密集型任务
 - **修改几何节点属性时**：始终使用 `set_modifier_socket_value()` 辅助函数，该函数封装了 Blender 5.0+ 的兼容性处理
 - **版本检查**：不再需要支持 Blender 4.x，所有新代码应直接使用 Blender 5.0+ API
 - **版本转换**：使用 `level.translation_manager.get_version(platform, version)` 获取版本转换器
@@ -344,9 +372,9 @@ MBM_workflow/
 │   ├── blockstates.py          # 方块状态解析
 │   ├── block.py                # 方块对象创建
 │   ├── model.py                # 材质系统
-│   ├── schem.py                # schem/litematic 导入处理
+│   ├── schem.py                # schem/litematic 导入处理，多进程合并（merge_chunks）
 │   ├── exportfile.py           # 导出处理
-│   ├── importfile.py           # 导入操作符（包括 ImportLitematic）
+│   ├── importfile.py           # 导入操作符（包括多进程编排 MultiprocessPool）
 │   ├── create_world.py         # 存档创建
 │   ├── functions/              # 功能模块
 │   │   ├── mesh_to_mc.py       # 网格转方块
@@ -363,6 +391,6 @@ MBM_workflow/
 ├── mutf8/                      # UTF-8 修改支持
 ├── colors/                     # 颜色对照表
 ├── doc/                        # 文档目录
-├── multiprocess/               # 多进程支持（实验性）
+├── multiprocess/               # 多进程子进程脚本
 └── test_version_*.py           # 测试脚本
 ```
