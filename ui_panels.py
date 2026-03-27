@@ -2,7 +2,7 @@ import bpy
 
 # 翻译支持
 from bpy.app.translations import pgettext_iface as _
-from .i18n.translations import panel_label
+from .i18n.translations import panel_label, operator_label
 
 # 依赖管理
 from .codes.dependency_manager import litemapy
@@ -26,25 +26,6 @@ class MBM_PT_main_panel(bpy.types.Panel):
         row.label(text="MBM_workflow", icon="BOLD")
 
 
-# 方块面板
-class MBM_PT_block_panel(bpy.types.Panel):
-    bl_label = panel_label("方块")
-    bl_idname = "MBM_PT_block_panel"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category = "MBM_workflow"
-    bl_parent_id = "MBM_PT_main_panel"
-    bl_options = {"DEFAULT_CLOSED"}
-
-    def draw(self, context):
-        layout = self.layout
-        row = layout.row()
-        row.label(text="方块", icon="SNAP_VOLUME")
-
-        row = layout.row()
-        row.operator("mbm.import_json", text="导入.json文件")
-
-
 # 导入面板
 class MBM_PT_import_panel(bpy.types.Panel):
     bl_label = panel_label("导入")
@@ -60,7 +41,7 @@ class MBM_PT_import_panel(bpy.types.Panel):
         scene = context.scene
 
         row = layout.row()
-        row.label(text="导入", icon="ERROR")
+        row.label(text="导入", icon="IMPORT")
         # 创建一个框
         box = layout.box()
         box.label(text="导入.schem文件")
@@ -80,6 +61,7 @@ class MBM_PT_import_panel(bpy.types.Panel):
         box = layout.box()
         box.label(text="导入方块")
         box.operator("mbm.import_block", text="导入方块")
+        box.operator("mbm.import_json", text="导入.json文件")
         box.operator("mbm.reload_blocks", text="重载失效方块", icon="FILE_REFRESH")
 
         box = layout.box()
@@ -131,26 +113,28 @@ class MBM_PT_export_panel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         row = layout.row()
+        row.prop(scene, "schem_filename", text="文件名")
+        row = layout.row()
         row.operator("mbm.export_schem", text="导出结构")
         box = layout.box()
         box.prop(scene, "save_list", text="选择世界")
         box.label(
-            text="结构位置：("
-            + str(scene.schem_size[0])
-            + ","
-            + str(scene.schem_size[1])
-            + ","
-            + str(scene.schem_size[2])
-            + ")"
-        )
-        box.label(
             text="长:"
             + str(scene.schem_size[0])
-            + "宽:"
+            + " 宽:"
             + str(scene.schem_size[1])
-            + "高:"
+            + " 高:"
             + str(scene.schem_size[2])
             + " (blender坐标系)"
+        )
+        box.label(
+            text="位置:("
+            + str(scene.schem_location[0])
+            + ","
+            + str(scene.schem_location[1])
+            + ","
+            + str(scene.schem_location[2])
+            + ")"
         )
 
         box.operator("mbm.calculate_size", text="计算结构大小")
@@ -172,7 +156,7 @@ class MBM_PT_create_level(bpy.types.Panel):
         scene = context.scene
 
         row = layout.row()
-        row.label(text="存档", icon="ERROR")
+        row.label(text="存档", icon="WORLD")
         row = layout.row()
         box = layout.box()
         row = box.row()
@@ -190,6 +174,10 @@ class MBM_PT_create_level(bpy.types.Panel):
         row = box.row()
         row.prop(scene, "overworld_generator_type", text="世界类型")
         row = box.row()
+        row.prop(scene, "hardcore", text="极限模式")
+        row = box.row()
+        row.prop(scene, "allow_commands", text="允许指令")
+        row = box.row()
         row.prop(scene, "breaking_the_height_limit", text="突破限高？")
         row = box.row()
         row.prop(scene, "day_time", text="时间")
@@ -199,7 +187,7 @@ class MBM_PT_create_level(bpy.types.Panel):
         row.operator("mbm.create_world", text="创建存档")
 
 
-# 创建编辑面板
+# 编辑面板
 class MBM_PT_edit_panel(bpy.types.Panel):
     bl_label = panel_label("编辑")
     bl_idname = "MBM_PT_edit_panel"
@@ -221,7 +209,7 @@ class MBM_PT_edit_panel(bpy.types.Panel):
         row.operator("mbm.switch_blocks_panel", text="替换方块")
         row = layout.row()
         row.operator(
-            "mbm.merge_schem_pointclouds", text="Merge + Regularize Point Cloud"
+            "mbm.merge_schem_pointclouds", text=operator_label("合并+规范化点云")
         )
         row = layout.row()
         row.label(text="可视化编辑：")
@@ -239,7 +227,7 @@ class MBM_PT_edit_panel(bpy.types.Panel):
         row.operator("mbm.paint_block", text="应用顶点色到方块")
 
 
-# 创建存档面板
+# 更多设置面板
 class MBM_PT_more_level_settings(bpy.types.Panel):
     bl_label = panel_label("更多设置")
     bl_idname = "MBM_PT_more_level_settings"
@@ -274,8 +262,11 @@ class MBM_PT_more_level_settings(bpy.types.Panel):
         box.label(text="设置跳过夜晚所需的入睡玩家所占百分比。")
         box.prop(scene, "players_sleeping_percentage", text="")
 
+        box.label(text="将一方块空间内挤压到一起的实体的最大数量")
+        box.prop(scene, "max_entity_cramming", text="")
 
-# 创建存档面板
+
+# 玩家能力面板
 class MBM_PT_ability(bpy.types.Panel):
     bl_label = panel_label("玩家能力")
     bl_idname = "MBM_PT_ability"

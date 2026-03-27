@@ -4,7 +4,6 @@ from .ui_dialogs import ColorToBlockPanel, SchemImportPanel, SwitchBlocks
 from .ui_lists import MBM_UL_color_to_block_list, MBM_UL_mod_list, MBM_UL_resourcepack_list, MBM_UL_switch_block_list
 from .ui_panels import (
     MBM_PT_ability,
-    MBM_PT_block_panel,
     MBM_PT_create_level,
     MBM_PT_edit_panel,
     MBM_PT_export_panel,
@@ -25,7 +24,6 @@ classes = [
     MBM_UL_switch_block_list,
     MBM_UL_mod_list,
     MBM_PT_main_panel,
-    MBM_PT_block_panel,
     MBM_PT_import_panel,
     MBM_PT_export_panel,
     MBM_PT_edit_panel,
