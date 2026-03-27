@@ -7,306 +7,152 @@ import re
 from ..property import unzip_mods_files,unzip_resourcepacks_files
 from ..color_dict import calculate_average_color
 
-class Read_mods_dir(bpy.types.Operator):
-    """读取目录"""
-    bl_idname = "mbm.read_mods_dir"
-    bl_label = "读取目录"
-    
-    def execute(self, context):
-        scene = context.scene
-        my_properties = scene.my_properties
-        existing_items = [item.name for item in my_properties.mod_list]
-        path = scene.mods_dir  # 使用自定义路径
+_CONFIG_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))),
+    "config.py"
+)
 
-        try:
-            directories = next(os.walk(path))[1]  # 获取路径下的所有文件夹名称
-        except StopIteration:
-            directories = []
 
-        # 添加不存在于列表属性的文件夹名称，并删除不存在于文件夹中的item
-        for directory in directories:
-            dir_name = directory
-            if dir_name not in existing_items:
-                item = my_properties.mod_list.add()
-                item.name = dir_name
-            else:
-                existing_items.remove(dir_name)
+def _sync_collection_to_dir(collection_prop, dir_path):
+    """将 CollectionProperty 与目录内容同步（增删项以匹配目录）"""
+    try:
+        directories = next(os.walk(dir_path))[1]
+    except StopIteration:
+        directories = []
 
-        # 删除不存在于文件夹中的item
-        items_to_remove = []
-        for index, item in enumerate(my_properties.mod_list):
-            if item.name not in directories:
-                items_to_remove.append(index)
+    existing = [item.name for item in collection_prop]
+    for d in directories:
+        if d not in existing:
+            item = collection_prop.add()
+            item.name = d
+        else:
+            existing.remove(d)
 
-        items_to_remove.reverse()  # 从后向前移除，以避免索引错位
-        for index in items_to_remove:
-            my_properties.mod_list.remove(index)
-        # 读取并更新 config.py 文件中的 config 字典
-        config_path = os.path.join(os.path.dirname(os.path.dirname((os.path.dirname(os.path.realpath(__file__))))),"config.py")
-        with open(config_path, 'r') as file:
-            lines = file.readlines()
+    to_remove = [i for i, item in enumerate(collection_prop) if item.name not in directories]
+    for i in reversed(to_remove):
+        collection_prop.remove(i)
 
-        config_index = -1
-        mod_list_str = ', '.join([f'"{item.name}"' for item in my_properties.mod_list])
-        mod_list_str = f'    "mod_list": [{mod_list_str}],\n'
 
-        for i, line in enumerate(lines):
-            if "config={" in line:
-                config_index = i
+def _write_config_list(key, items):
+    """在 config.py 中写入列表类型配置项"""
+    items_str = ', '.join(f'"{name}"' for name in items)
+    line = f'    "{key}": [{items_str}],\n'
+
+    with open(_CONFIG_PATH, 'r') as f:
+        lines = f.readlines()
+
+    config_index = -1
+    for i, l in enumerate(lines):
+        if "config={" in l:
+            config_index = i
+            break
+
+    if config_index != -1:
+        found = False
+        for i in range(config_index, len(lines)):
+            if key in lines[i]:
+                lines[i] = line
+                found = True
                 break
+        if not found:
+            lines.insert(config_index + 1, line)
 
-        if config_index != -1:
-            found_mod_list = False
-            for i in range(config_index, len(lines)):
-                if "mod_list" in lines[i]:
-                    lines[i] = mod_list_str
-                    found_mod_list = True
-                    break
+    with open(_CONFIG_PATH, 'w') as f:
+        f.writelines(lines)
 
-            if not found_mod_list:
-                lines.insert(config_index + 1, mod_list_str)
 
-        with open(config_path, 'w') as file:
-            file.writelines(lines)
+def _write_config_value(key, value):
+    """在 config.py 中用正则替换单值配置项"""
+    with open(_CONFIG_PATH, 'r') as f:
+        content = f.read()
+    pattern = rf'("{key}":\s*")([^"]*)(")'
+    content = re.sub(pattern, rf'\g<1>{value}\g<3>', content)
+    with open(_CONFIG_PATH, 'w') as f:
+        f.write(content)
 
+
+class Read_mods_dir(bpy.types.Operator):
+    """读取模组目录并同步到列表和 config.py"""
+    bl_idname = "mbm.read_mods_dir"
+    bl_label = "读取模组目录"
+
+    def execute(self, context):
+        my_properties = context.scene.my_properties
+        _sync_collection_to_dir(my_properties.mod_list, context.scene.mods_dir)
+        _write_config_list("mod_list", [item.name for item in my_properties.mod_list])
         return {'FINISHED'}
+
 
 class Read_resourcepacks_dir(bpy.types.Operator):
-    """读取目录"""
+    """读取资源包目录并同步到列表和 config.py"""
     bl_idname = "mbm.read_resourcepacks_dir"
-    bl_label = "读取目录"
-    
+    bl_label = "读取资源包目录"
+
     def execute(self, context):
-        scene = context.scene
-        my_properties = scene.my_properties
-        existing_items = [item.name for item in my_properties.resourcepack_list]
-        path = scene.resourcepacks_dir  # 使用自定义路径
-
-        try:
-            directories = next(os.walk(path))[1]  # 获取路径下的所有文件夹名称
-        except StopIteration:
-            directories = []
-
-        # 添加不存在于列表属性的文件夹名称，并删除不存在于文件夹中的item
-        for directory in directories:
-            dir_name = directory
-            if dir_name not in existing_items:
-                item = my_properties.resourcepack_list.add()
-                item.name = dir_name
-            else:
-                existing_items.remove(dir_name)
-
-        # 删除不存在于文件夹中的item
-        items_to_remove = []
-        for index, item in enumerate(my_properties.resourcepack_list):
-            if item.name not in directories:
-                items_to_remove.append(index)
-
-        items_to_remove.reverse()  # 从后向前移除，以避免索引错位
-        for index in items_to_remove:
-            my_properties.resourcepack_list.remove(index)
-        # 读取并更新 config.py 文件中的 config 字典
-        config_path = os.path.join(os.path.dirname(os.path.dirname((os.path.dirname(os.path.realpath(__file__))))),"config.py")
-        with open(config_path, 'r') as file:
-            lines = file.readlines()
-
-        config_index = -1
-        resourcepack_list_str = ', '.join([f'"{item.name}"' for item in my_properties.resourcepack_list])
-        resourcepack_list_str = f'    "resourcepack_list": [{resourcepack_list_str}],\n'
-
-        for i, line in enumerate(lines):
-            if "config={" in line:
-                config_index = i
-                break
-
-        if config_index != -1:
-            found_resourcepack_list = False
-            for i in range(config_index, len(lines)):
-                if "resourcepack_list" in lines[i]:
-                    lines[i] = resourcepack_list_str
-                    found_resourcepack_list = True
-                    break
-
-            if not found_resourcepack_list:
-                lines.insert(config_index + 1, resourcepack_list_str)
-
-        with open(config_path, 'w') as file:
-            file.writelines(lines)
+        my_properties = context.scene.my_properties
+        _sync_collection_to_dir(my_properties.resourcepack_list, context.scene.resourcepacks_dir)
+        _write_config_list("resourcepack_list", [item.name for item in my_properties.resourcepack_list])
         return {'FINISHED'}
-    
+
+
 class Read_versions_dir(bpy.types.Operator):
-    """读取目录"""
+    """读取版本目录并更新枚举列表"""
     bl_idname = "mbm.read_versions_dir"
-    bl_label = "读取目录"
-    
-    def execute(self, context):
-        scene = context.scene
-        version_items = []
-        path = scene.versions_dir  # 使用自定义路径
+    bl_label = "读取版本目录"
 
+    def execute(self, context):
+        path = context.scene.versions_dir
         try:
-            directories = next(os.walk(path))[1]  # 获取路径下的所有文件夹名称
+            directories = next(os.walk(path))[1]
         except StopIteration:
             directories = []
 
-        # 添加不存在于列表属性的文件夹名称，并删除不存在于文件夹中的item
-        for filename in directories:
-            version_items.append((filename, filename, ''))
-
+        items = [(d, d, '') for d in directories]
         bpy.types.Scene.version_list = bpy.props.EnumProperty(
-            name="版本",
-            description="选择一个版本",
-            items=version_items,
+            name="版本", description="选择一个版本", items=items,
         )
-        
-        # 获取当前选中的版本
-        selected_version = bpy.context.scene.version_list
-
-        # 读取config.py文件
-        config_path = os.path.join(os.path.dirname(os.path.dirname((os.path.dirname(os.path.realpath(__file__))))),"config.py")
-        with open(config_path, 'r') as file:
-            content = file.read()
-
-        # 使用正则表达式找到"version"参数并替换其值
-        pattern = r'("version":\s*")([^"]*)(")'
-        new_content = re.sub(pattern, fr'\g<1>{selected_version}\g<3>', content)
-
-        # 将更改后的内容写回config.py文件
-        with open(config_path, 'w') as file:
-            file.write(new_content)
-
+        _write_config_value("version", context.scene.version_list)
         return {'FINISHED'}
-    
-class Read_saves_dir(bpy.types.Operator):
-    """读取目录"""
-    bl_idname = "mbm.read_saves_dir"
-    bl_label = "读取目录"
-    
-    def execute(self, context):
-        scene = context.scene
-        save_items = []
-        path = scene.saves_dir  # 使用自定义路径
 
+
+class Read_saves_dir(bpy.types.Operator):
+    """读取存档目录并更新枚举列表"""
+    bl_idname = "mbm.read_saves_dir"
+    bl_label = "读取存档目录"
+
+    def execute(self, context):
+        path = context.scene.saves_dir
         try:
-            directories = next(os.walk(path))[1]  # 获取路径下的所有文件夹名称
+            directories = next(os.walk(path))[1]
             directories = [d for d in directories if os.path.exists(os.path.join(path, d, 'level.dat'))]
         except StopIteration:
             directories = []
 
-        # 添加不存在于列表属性的文件夹名称，并删除不存在于文件夹中的item
-        for filename in directories:
-            save_items.append((filename, filename, ''))
-
+        items = [(d, d, '') for d in directories]
         bpy.types.Scene.save_list = bpy.props.EnumProperty(
-            name="存档",
-            description="选择一个存档",
-            items=save_items,
+            name="存档", description="选择一个存档", items=items,
         )
-
-        selected_save = getattr(bpy.context.scene, 'save_list', None)
-
-
-        # 读取config.py文件
-        config_path = os.path.join(os.path.dirname(os.path.dirname((os.path.dirname(os.path.realpath(__file__))))),"config.py")
-        with open(config_path, 'r') as file:
-            content = file.read()
-
-        # 使用正则表达式找到"save"参数并替换其值
-        pattern = r'("save":\s*")([^"]*)(")'
-        new_content = re.sub(pattern, fr'\g<1>{selected_save}\g<3>', content)
-
-        # 将更改后的内容写回config.py文件
-        with open(config_path, 'w') as file:
-            file.write(new_content)
-
+        _write_config_value("save", getattr(context.scene, 'save_list', None))
         return {'FINISHED'}
 
-class Read_colors_dir(bpy.types.Operator):
-    """读取目录"""
-    bl_idname = "mbm.read_colors_dir"
-    bl_label = "读取目录"
-    
-    def execute(self, context):
-        scene = context.scene
-        color_items = []
-        path = scene.colors_dir  # 使用自定义路径
 
+class Read_colors_dir(bpy.types.Operator):
+    """读取颜色目录并更新枚举列表"""
+    bl_idname = "mbm.read_colors_dir"
+    bl_label = "读取颜色目录"
+
+    def execute(self, context):
+        path = context.scene.colors_dir
         try:
             files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and f.endswith('.py')]
         except FileNotFoundError:
             files = []
 
-        # 添加不存在于列表属性的文件夹名称，并删除不存在于文件夹中的item
-        for filename in files:
-            color_items.append((filename, filename, ''))
-
+        items = [(f, f, '') for f in files]
         bpy.types.Scene.color_list = bpy.props.EnumProperty(
-            name="颜色",
-            description="选择一个颜色字典",
-            items=color_items,
+            name="颜色", description="选择一个颜色字典", items=items,
         )
-        
-        # 获取当前选中的版本
-        selected_version = bpy.context.scene.color_list
-
-        # 读取config.py文件
-        config_path = os.path.join(os.path.dirname(os.path.dirname((os.path.dirname(os.path.realpath(__file__))))),"config.py")
-        with open(config_path, 'r') as file:
-            content = file.read()
-
-        # 使用正则表达式找到"color"参数并替换其值
-        pattern = r'("color":\s*")([^"]*)(")'
-        new_content = re.sub(pattern, fr'\g<1>{selected_version}\g<3>', content)
-
-        # 将更改后的内容写回config.py文件
-        with open(config_path, 'w') as file:
-            file.write(new_content)
-
-        return {'FINISHED'}
-    
-class Read_schems_dir(bpy.types.Operator):
-    """读取schem目录"""
-    bl_idname = "mbm.read_schems_dir"
-    bl_label = "读取schem目录"
-    
-    def execute(self, context):
-        scene = context.scene
-        schem_items = []
-        path = scene.schems_dir  # 使用自定义路径
-
-        try:
-            # 获取路径下的所有文件
-            directories = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and f.endswith('.schem')]
-        except StopIteration:
-            directories = []
-
-        # 添加不存在于列表属性的文件夹名称，并删除不存在于文件夹中的item
-        for filename in directories:
-            schem_items.append((filename, filename, ''))
-
-        bpy.types.Scene.schem_list = bpy.props.EnumProperty(
-            name=".schem文件",
-            description="选择一个.schem文件",
-            items=schem_items,
-        )
-        
-        selected_schem = getattr(bpy.context.scene, 'schem_list', None)
-
-
-
-        # 读取config.py文件
-        config_path = os.path.join(os.path.dirname(os.path.dirname((os.path.dirname(os.path.realpath(__file__))))),"config.py")
-        with open(config_path, 'r') as file:
-            content = file.read()
-
-        # 使用正则表达式找到"schem"参数并替换其值
-        pattern = r'("schem":\s*")([^"]*)(")'
-        new_content = re.sub(pattern, fr'\g<1>{selected_schem}\g<3>', content)
-
-        # 将更改后的内容写回config.py文件
-        with open(config_path, 'w') as file:
-            file.write(new_content)
-
+        _write_config_value("color", context.scene.color_list)
         return {'FINISHED'}
     
     
@@ -366,7 +212,7 @@ class AddModOperator(bpy.types.Operator):
     def execute(self, context):
         for f in self.files:
             # 从文件路径中提取文件名            
-            self.filepath=str(str(os.path.dirname(self.filepath))+"\\"+str(f.name))
+            self.filepath=os.path.join(os.path.dirname(self.filepath), f.name)
             source_file = self.filepath
             destination_folder = bpy.context.scene.jars_dir  # 获取指定文件夹路径
 
@@ -444,7 +290,7 @@ class AddResourcepackOperator(bpy.types.Operator):
     def execute(self, context):
         for f in self.files:
             # 从文件路径中提取文件名            
-            self.filepath=str(str(os.path.dirname(self.filepath))+"\\"+str(f.name))
+            self.filepath=os.path.join(os.path.dirname(self.filepath), f.name)
             source_file = self.filepath
             destination_folder = bpy.context.scene.zips_dir  # 获取指定文件夹路径
 
@@ -533,7 +379,7 @@ class AddColorToBlockOperator(bpy.types.Operator):
                 item = color_to_block_list.add()
                 item.name = filename
                 item.type = -1
-                item.filepath=source_file+"\\"+f.name
+                item.filepath=os.path.join(source_file, f.name)
 
         return {'FINISHED'}
 
@@ -573,7 +419,7 @@ class GetAverageColor(bpy.types.Operator):
     def execute(self, context):
         for f in self.files:
             # 从文件路径中提取文件名            
-            self.filepath=str(str(os.path.dirname(self.filepath))+"\\"+str(f.name))
+            self.filepath=os.path.join(os.path.dirname(self.filepath), f.name)
             color = calculate_average_color(self.filepath)
             self.report({'INFO'}, str(color)) # 使用消息系统显示颜色信息
         return {'FINISHED'}
@@ -582,7 +428,7 @@ class GetAverageColor(bpy.types.Operator):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-classes=[Read_resourcepacks_dir,Read_mods_dir, Read_versions_dir,Read_saves_dir,Read_colors_dir,Read_schems_dir,MoveModItem,MoveResourcepackItem,
+classes=[Read_resourcepacks_dir,Read_mods_dir, Read_versions_dir,Read_saves_dir,Read_colors_dir,MoveModItem,MoveResourcepackItem,
          AddModOperator,DeleteModOperator,AddResourcepackOperator,DeleteResourcepackOperator,AddColorToBlockOperator,DeleteColorToBlockOperator,GetAverageColor]
 
 

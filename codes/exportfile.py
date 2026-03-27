@@ -23,7 +23,7 @@ else:
 
 
 class OpenSaves_FileManagerOperator(bpy.types.Operator):
-    bl_idname = "mbm.open_saves_folder_s"
+    bl_idname = "mbm.open_saves_folder_after_export"
     bl_label = "打开文件管理器"
 
     def execute(self, context):
@@ -36,7 +36,7 @@ class OpenSaves_FileManagerOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class OpenFileManagerOperator(bpy.types.Operator):
-    bl_idname = "mbm.opem_schem_folder"
+    bl_idname = "mbm.open_schem_folder"
     bl_label = "打开文件管理器"
 
     def execute(self, context):
@@ -99,7 +99,7 @@ class ExportSchem(bpy.types.Operator):
                         for i, item in enumerate(blockid_attr):
                             try:
                                 blockid = item.value  # 获取blockid属性值
-                            except:
+                            except (AttributeError, TypeError):
                                 blockid = 0
                             if blockid == 0:
                                 continue
@@ -120,7 +120,7 @@ class ExportSchem(bpy.types.Operator):
                         # 获取顶点属性值（blockid）
                         try:
                             blockid = obj.data.attributes['blockid'].data[vertex.index].value
-                        except:
+                        except (AttributeError, TypeError):
                             blockid = 0
                         if blockid == 0:
                             continue
@@ -327,7 +327,7 @@ class ExportToSave(bpy.types.Operator):
                         for i, item in enumerate(blockid_attr):
                             try:
                                 blockid = item.value  # 获取blockid属性值
-                            except:
+                            except (AttributeError, TypeError):
                                 blockid = 0
                             if blockid == 0:
                                 continue
@@ -346,7 +346,7 @@ class ExportToSave(bpy.types.Operator):
                         # 获取顶点属性值（blockid）
                         try:
                             blockid = obj.data.attributes['blockid'].data[vertex.index].value
-                        except:
+                        except (AttributeError, TypeError):
                             blockid = 0
                         if blockid == 0:
                             continue

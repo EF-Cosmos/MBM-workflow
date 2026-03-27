@@ -130,7 +130,7 @@ class SwitchBlocks(bpy.types.Operator):
                         for item in blockid_attr:
                             try:
                                 blockid = item.value  # 获取blockid属性值
-                            except:
+                            except (AttributeError, TypeError):
                                 blockid = 0
                             if blockid != 0:
                                 unique_blockids.add(blockid)
@@ -143,7 +143,7 @@ class SwitchBlocks(bpy.types.Operator):
                     for vertex in mesh.vertices:
                         try:
                             blockid = obj.data.attributes['blockid'].data[vertex.index].value
-                        except:
+                        except (AttributeError, TypeError):
                             blockid = 0
                         if blockid != 0:
                             unique_blockids.add(blockid)
