@@ -9,6 +9,13 @@ import numpy as np
 import os
 from .register import create_or_clear_collection,register_blocks,registered_blocks
 import pickle
+import json
+
+# 缓存路径常量
+SCHEMCACHE_DIR = os.path.join(
+    bpy.utils.script_path_user(), "addons", "MBM_Workflow", "schemcache"
+)
+VAR_CACHE_PATH = os.path.join(SCHEMCACHE_DIR, "var.json")
 
 # 使用依赖管理器导入
 amulet = dependency_manager.amulet
@@ -29,7 +36,7 @@ def get_mc_version_config():
             scene.mc_version_patch
         )
         return platform, version_tuple
-    except:
+    except Exception:
         # 默认版本
         return "java", (1, 21, 9)
 
@@ -77,7 +84,7 @@ def schem(level, chunks, cached, filename="schem", position=(0, 0, 0)):
     #导入几何节点
     try:
         nodes_modifier.node_group = bpy.data.node_groups[collection_name]
-    except:
+    except (KeyError, AttributeError):
         file_path =bpy.context.scene.geometrynodes_blend_path
         inner_path = 'NodeTree'
         object_name = nodetree_target
@@ -98,8 +105,8 @@ def schem(level, chunks, cached, filename="schem", position=(0, 0, 0)):
                 for z in range(min_coords[2], max_coords[2] + 1):
                     try:
                         id = level.get_block(x, y, z, "main")
-                    except:
-                        pass
+                    except Exception as e:
+                        continue
                     if isinstance(id,amulet.api.block.Block):
                         
                         if id.extra_blocks !=():
@@ -108,17 +115,17 @@ def schem(level, chunks, cached, filename="schem", position=(0, 0, 0)):
                             w=0
                         id =str(level.translation_manager.get_version(platform, version).block.from_universal(id)[0]).replace('"', '')
                         try:
-                            result = remove_brackets(id) 
-                            if result not in exclude:  
+                            result = remove_brackets(id)
+                            if result not in exclude:
                                 vertices.append((x-min_coords[0],-(z-min_coords[2]),y-min_coords[1]))
                                 # 将字符串id转换为相应的数字id
                                 ids.append(id)
                                 waterlogged.append(w)
-                        except:
-                            pass
+                        except Exception as e:
+                            print(f"[MBM] 方块处理出错 ({x},{y},{z}): {e}")
         id_map=register_blocks(list(set(ids)))
     else:
-        IDCachePath = bpy.utils.script_path_user() + "/addons/MBM_Workflow/schemcache/id_map.pkl"
+        IDCachePath = os.path.join(SCHEMCACHE_DIR, "id_map.pkl")
         with open(IDCachePath, 'rb') as f:
             vertices,ids,id_map = pickle.load(f)
         id_map=register_blocks(id_map)
@@ -163,44 +170,63 @@ def schem(level, chunks, cached, filename="schem", position=(0, 0, 0)):
     return obj
     
 
-def schem_chunk(level, chunks, x_list, filename="schem", position=(0, 0, 0)):
+def schem_chunk(level, chunks, x_list, chunk_index=0, filename="schem", position=(0, 0, 0)):
     # 获取配置的版本
     platform, version = get_mc_version_config()
 
     # 获取最小和最大坐标
     min_coords = chunks[0]
     max_coords = chunks[1]
-    current_frame = bpy.context.scene.frame_current
 
     # 创建顶点和顶点索引
     vertices = []
     ids = []  # 存储顶点id
 
-    # 遍历范围内所有的坐标
-    for x in range(x_list[current_frame][0], x_list[current_frame][1]):
+    # 遍历指定区块的 X 范围
+    x_range = x_list[chunk_index]
+    for x in range(x_range[0], x_range[1]):
         for y in range(min_coords[1], max_coords[1] + 1):
             for z in range(min_coords[2], max_coords[2] + 1):
                 try:
-                    # 获取坐标处的方块       
+                    # 获取坐标处的方块
                     blc =level.get_version_block(x, y, z, "main",(platform, version))
                     id =blc[0]
                     if isinstance(id,amulet.api.block.Block):
                         id = str(id).replace('"', '')
-                        result = remove_brackets(id) 
-                        if result not in exclude:  
+                        result = remove_brackets(id)
+                        if result not in exclude:
                             vertices.append((x-min_coords[0],-(z-min_coords[2]),y-min_coords[1]))
                             # 将字符串id转换为相应的数字id
                             ids.append(id)
-                except:
-                    pass
+                except Exception as e:
+                    print(f"[MBM] 区块处理出错 ({x},{y},{z}): {e}")
 
     id_map=register_blocks(list(set(ids)))
 
-    IDCachePath = bpy.utils.script_path_user() + "/addons/MBM_Workflow/schemcache/chunk{}.pkl".format(current_frame)
+    IDCachePath = os.path.join(SCHEMCACHE_DIR, f"chunk{chunk_index}.pkl")
     with open(IDCachePath, 'wb') as f:
         pickle.dump((vertices,ids,id_map), f)
-    
-    
+
+
+def merge_chunks(chunk_count, filename="schem"):
+    """读取所有 chunk*.pkl，合并顶点和 id_map，写入 id_map.pkl 供 schem() 的 cached 分支读取"""
+    all_vertices = []
+    all_ids = []
+    merged_id_map = {}
+
+    for i in range(chunk_count):
+        chunk_path = os.path.join(SCHEMCACHE_DIR, f"chunk{i}.pkl")
+        with open(chunk_path, 'rb') as f:
+            vertices, ids, chunk_id_map = pickle.load(f)
+        all_vertices.extend(vertices)
+        all_ids.extend(ids)
+        merged_id_map.update(chunk_id_map)
+
+    # 写入合并后的 id_map.pkl
+    id_map_path = os.path.join(SCHEMCACHE_DIR, "id_map.pkl")
+    with open(id_map_path, 'wb') as f:
+        pickle.dump((all_vertices, all_ids, merged_id_map), f)
+
 
 #流体
 def schem_liquid(level, chunks, filename="liquid", position=(0, 0, 0)):
@@ -251,18 +277,18 @@ def schem_liquid(level, chunks, filename="liquid", position=(0, 0, 0)):
                 # 获取坐标处的方块
                 try:
                     id = level.get_block(x, y, z, "main")
-                except:
+                except Exception:
                     continue
                 if isinstance(id,amulet.api.block.Block):
                     if id.extra_blocks !=():
                         try:
                             id=str(level.translation_manager.get_version(platform, version).block.from_universal(id.extra_blocks[0])[0]).replace('"', '')
-                        except:
+                        except Exception:
                             continue
                     else:
                         try:
                             id =str(level.translation_manager.get_version(platform, version).block.from_universal(id)[0]).replace('"', '')
-                        except:
+                        except Exception:
                             continue
                     
                     result = remove_brackets(id) 
@@ -280,7 +306,7 @@ def schem_liquid(level, chunks, filename="liquid", position=(0, 0, 0)):
                         for i, adj_coord in enumerate(adjacent_coords):
                             try:
                                 name = level.get_block(adj_coord[0], adj_coord[1], adj_coord[2], "main")
-                            except:
+                            except Exception:
                                 continue
                             if isinstance(name,amulet.api.block.Block):
                                 if name.extra_blocks !=():
@@ -288,7 +314,7 @@ def schem_liquid(level, chunks, filename="liquid", position=(0, 0, 0)):
                                 else:
                                     try:
                                         name =str(level.translation_manager.get_version(platform, version).block.from_universal(name)[0]).replace('"', '')
-                                    except:
+                                    except Exception:
                                         continue
                                 # 找到等号的位置
                                 equal_index = name.find('[')
@@ -497,7 +523,7 @@ def separate_vertices_by_blockid(obj):
         try:
             blockid = obj.data.attributes['blockid'].data[vertex.index].value
             waterlogged = obj.data.attributes['waterlogged'].data[vertex.index].value
-        except:
+        except (KeyError, AttributeError):
             blockid = 0
             waterlogged = False
         # 根据 blockid 将顶点添加到相应的列表中
@@ -632,7 +658,7 @@ def litematic_to_mesh(block_dict, bounds, filename="litematic"):
     # 导入几何节点
     try:
         nodes_modifier.node_group = bpy.data.node_groups[collection_name]
-    except:
+    except (KeyError, AttributeError):
         file_path = bpy.context.scene.geometrynodes_blend_path
         inner_path = 'NodeTree'
         object_name = nodetree_target

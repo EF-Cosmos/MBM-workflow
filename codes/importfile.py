@@ -1,23 +1,36 @@
 import bpy
 import os
 import time
-import pickle
 import re
+import subprocess
 
 from .block import block
 from .functions.get_data import get_all_data
 from .classification_files.block_type import exclude
-from .schem import schem_chunk,schem_liquid,schem,remove_brackets,separate_vertices_by_blockid,separate_vertices_by_chunk,litematic_to_mesh
+from .schem import schem_chunk,schem_liquid,schem,remove_brackets,separate_vertices_by_blockid,separate_vertices_by_chunk,litematic_to_mesh,merge_chunks,SCHEMCACHE_DIR,VAR_CACHE_PATH
 from .functions.mesh_to_mc import create_mesh_from_dictionary,create_or_clear_collection
 from .register import register_blocks
 from .block_map_store import load_block_map, save_block_map
 from . import dependency_manager
 import json
-import threading
 
 # 使用依赖管理器导入
 amulet = dependency_manager.amulet
 amulet_nbt = dependency_manager.amulet_nbt
+
+
+def write_var_cache(schempath, chunks, name, x_list, processnum):
+    """将多进程共享数据写入 var.json（替代不安全的 pickle）"""
+    os.makedirs(SCHEMCACHE_DIR, exist_ok=True)
+    data = {
+        "schempath": schempath,
+        "chunks": chunks,
+        "name": name,
+        "x_list": x_list,
+        "processnum": processnum,
+    }
+    with open(VAR_CACHE_PATH, 'w') as f:
+        json.dump(data, f)
 
 
 class ImportBlock(bpy.types.Operator):
@@ -174,12 +187,25 @@ class ImportSchem(bpy.types.Operator):
             self.filepath=str(str(os.path.dirname(self.filepath))+"\\"+str(f.name))
             name=os.path.basename(self.filepath)
             folder_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))+ "/schemcache"
-            file_names = os.listdir(folder_path)
-            for file_name in file_names:
-                file_path = os.path.join(folder_path, file_name)
-                os.remove(file_path)
+            if os.path.exists(folder_path):
+                file_names = os.listdir(folder_path)
+                for file_name in file_names:
+                    file_path = os.path.join(folder_path, file_name)
+                    os.remove(file_path)
             level = amulet.load_level(self.filepath)
             chunks = [list(point) for point in level.bounds("main").bounds]
+
+            # 判断方块数量，超过阈值自动启用多进程
+            total_blocks = ((chunks[1][0] - chunks[0][0]) *
+                            (chunks[1][1] - chunks[0][1]) *
+                            (chunks[1][2] - chunks[0][2]))
+            prefs = context.preferences.addons.get('MBM_Workflow')
+            if prefs and total_blocks >= prefs.preferences.sna_minsize:
+                level.close()
+                print(f"[MBM] 方块数 {total_blocks} >= 阈值 {prefs.preferences.sna_minsize}，自动启用多进程")
+                bpy.ops.mbm.multiprocess_pool(filepath=self.filepath)
+                return {'FINISHED'}
+
             # 使用公共 API 加载 NBT 数据
             with open(self.filepath, "rb") as f:
                 nbt_data = amulet_nbt.load(f)
@@ -211,16 +237,10 @@ class ImportSchem(bpy.types.Operator):
             image = bpy.data.images.new("colormap", width=image_width, height=image_height)
             image.use_fake_user = True
 
-            def set_default_color(image, image_width, image_height, default_color):
-                # 设置默认颜色
-                for y in range(image_height):
-                    for x in range(image_width):
-                        pixel_index = (y * image_width + x) * 4  # RGBA每个通道都是4个值
-                        image.pixels[pixel_index : pixel_index + 4] = default_color
-            # 创建一个新的线程来执行 set_default_color 函数
-            thread = threading.Thread(target=set_default_color, args=(image, image_width, image_height, default_color))
-            # 启动新的线程
-            thread.start()
+            # 使用 foreach_set 设置默认颜色（替代非线程安全的像素线程操作）
+            pixel_count = image_width * image_height * 4
+            pixels = [c for _ in range(image_width * image_height) for c in default_color]
+            image.pixels.foreach_set(pixels)
             start_time = time.time()
 
             obj=schem(level,chunks,False,name)
@@ -606,11 +626,19 @@ class MultiprocessImport(bpy.types.Operator):
     filter_glob: bpy.props.StringProperty(default="*.schem", options={'HIDDEN'}) # type: ignore
 
     def execute(self, context):
-        VarCachePath = bpy.utils.script_path_user() + "/addons/MBM_Workflow/schemcache/var.pkl"
-        with open(VarCachePath, 'rb') as file:
-            schempath,chunks,name,x_list,processnum = pickle.load(file)
+        with open(VAR_CACHE_PATH, 'r') as f:
+            data = json.load(f)
+        schempath = data["schempath"]
+        chunks = data["chunks"]
+        name = data["name"]
+        processnum = data["processnum"]
+
+        # 合并所有区块数据
+        merge_chunks(processnum, name)
+
+        # 使用合并后的数据创建最终网格
         level = amulet.load_level(schempath)
-        schem(level,chunks,True,name)
+        schem(level, chunks, True, name)
 
         materials = bpy.data.materials
         for material in materials:
@@ -632,38 +660,138 @@ class MultiprocessImport(bpy.types.Operator):
 #每个进程分别处理一个区块
 class MultiprocessSchem(bpy.types.Operator):
     bl_idname = "mbm.import_schem_mp"
-    bl_label = "导入.schem文件"
+    bl_label = "多进程区块处理"
     filepath: bpy.props.StringProperty(subtype="FILE_PATH") # type: ignore
-    filter_glob: bpy.props.StringProperty(default="*.schem", options={'HIDDEN'}) # type: ignore
+    chunk_index: bpy.props.IntProperty(default=0) # type: ignore
 
     def execute(self, context):
-        VarCachePath = bpy.utils.script_path_user() + "/addons/MBM_Workflow/schemcache/var.pkl"
-        with open(VarCachePath, 'rb') as file:
-            schempath,chunks,name,x_list,processnum = pickle.load(file)
-        level = amulet.load_level(schempath)
-        schem_chunk(level,chunks,x_list,name)
-
+        with open(VAR_CACHE_PATH, 'r') as f:
+            data = json.load(f)
+        level = amulet.load_level(self.filepath)
+        schem_chunk(level, data["chunks"], data["x_list"],
+                    chunk_index=self.chunk_index, filename=data["name"])
         return {'FINISHED'}
-    def invoke(self, context, event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
-    
+
 
 class ImportSchemLiquid(bpy.types.Operator):
     bl_idname = "mbm.import_schem_liquid"
-    bl_label = "导入.schem文件"
+    bl_label = "多进程流体处理"
+
+    def execute(self, context):
+        with open(VAR_CACHE_PATH, 'r') as f:
+            data = json.load(f)
+        level = amulet.load_level(data["schempath"])
+        schem_liquid(level, data["chunks"])
+        ModelCachePath = os.path.join(SCHEMCACHE_DIR, "liquid.blend")
+        bpy.ops.wm.save_as_mainfile(filepath=ModelCachePath)
+        return {'FINISHED'}
+
+
+class MultiprocessPool(bpy.types.Operator):
+    """多进程导入 .schem 文件（自动分块并行处理）"""
+    bl_idname = "mbm.multiprocess_pool"
+    bl_label = "多进程导入.schem文件"
+    bl_options = {"REGISTER"}
+
     filepath: bpy.props.StringProperty(subtype="FILE_PATH") # type: ignore
     filter_glob: bpy.props.StringProperty(default="*.schem", options={'HIDDEN'}) # type: ignore
 
     def execute(self, context):
-        VarCachePath = bpy.utils.script_path_user() + "/addons/MBM_Workflow/schemcache/var.pkl"
-        with open(VarCachePath, 'rb') as file:
-            chunks,mp_chunks,schempath,interval,processnum = pickle.load(file)
-        level = amulet.load_level(schempath)
-        schem_liquid(level,chunks)
-        ModelCachePath = bpy.utils.script_path_user() + "/addons/MBM_Workflow/schemcache/liquid.blend"
-        bpy.ops.wm.save_as_mainfile(filepath=ModelCachePath)
-        return {'FINISHED'}
+        prefs = context.preferences.addons['MBM_Workflow'].preferences
+        processnum = prefs.sna_processnumber
+        minsize = prefs.sna_minsize
+
+        # 1. 加载 schem 文件
+        level = amulet.load_level(self.filepath)
+        bounds = level.bounds()
+        chunks = [list(bounds.min), list(bounds.max)]
+        total_blocks = ((chunks[1][0] - chunks[0][0]) *
+                        (chunks[1][1] - chunks[0][1]) *
+                        (chunks[1][2] - chunks[0][2]))
+
+        # 2. 不满足多进程阈值时回退到单进程
+        if total_blocks < minsize:
+            print(f"[MBM] 方块数 {total_blocks} < 阈值 {minsize}，使用单进程导入")
+            level.close()
+            bpy.ops.mbm.import_schem(filepath=self.filepath)
+            return {'FINISHED'}
+
+        # 3. 计算 x_list 分割（沿 X 轴均分）
+        x_range = chunks[1][0] - chunks[0][0]
+        chunk_size = max(1, x_range // processnum)
+        x_list = []
+        for i in range(processnum):
+            start = chunks[0][0] + i * chunk_size
+            end = chunks[0][0] + (i + 1) * chunk_size if i < processnum - 1 else chunks[1][0] + 1
+            x_list.append([start, end])
+
+        # 4. 写 var.json
+        name = os.path.splitext(os.path.basename(self.filepath))[0]
+        level.close()
+        write_var_cache(self.filepath, chunks, name, x_list, processnum)
+
+        # 5. 启动子进程
+        mp_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "multiprocess")
+        processes = []
+
+        for i in range(processnum):
+            p = subprocess.Popen(
+                [bpy.app.binary_path, "--background", "--python",
+                 os.path.join(mp_dir, "schem_mp.py")],
+                env={**os.environ, "MBM_CHUNK_INDEX": str(i)}
+            )
+            processes.append(p)
+
+        # 启动液体处理子进程
+        p_liquid = subprocess.Popen(
+            [bpy.app.binary_path, "--background", "--python",
+             os.path.join(mp_dir, "schem_liquid_mp.py")]
+        )
+        processes.append(p_liquid)
+
+        print(f"[MBM] 已启动 {len(processes)} 个子进程处理 {name}")
+        self._processes = processes
+        self._name = name
+        self._context = context
+
+        # 6. 使用 timer 轮询等待子进程完成（不阻塞 UI）
+        bpy.app.timers.register(self._wait_for_processes, first_interval=2.0)
+        return {'RUNNING_MODAL'}
+
+    def _wait_for_processes(self):
+        """轮询子进程完成状态"""
+        all_done = all(p.poll() is not None for p in self._processes)
+        if not all_done:
+            return 2.0  # 2秒后再次检查
+
+        # 所有子进程完成，执行合并导入
+        try:
+            with open(VAR_CACHE_PATH, 'r') as f:
+                data = json.load(f)
+            processnum = data["processnum"]
+
+            # 检查子进程是否都成功
+            for i, p in enumerate(self._processes):
+                if p.returncode != 0:
+                    print(f"[MBM] 子进程 {i} 异常退出，返回码: {p.returncode}")
+
+            merge_chunks(processnum, self._name)
+            level = amulet.load_level(data["schempath"])
+            schem(level, data["chunks"], True, self._name)
+
+            # 液体合并
+            liquid_path = os.path.join(SCHEMCACHE_DIR, "liquid.blend")
+            if os.path.exists(liquid_path):
+                bpy.ops.wm.append(
+                    filepath=liquid_path,
+                    directory=os.path.dirname(liquid_path)
+                )
+
+            print(f"[MBM] 多进程导入完成: {self._name}")
+        except Exception as e:
+            print(f"[MBM] 多进程合并出错: {e}")
+        return None  # 停止计时器
+
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
@@ -699,12 +827,10 @@ class Importjson(bpy.types.Operator):
 class SNA_AddonPreferences_F35F8(bpy.types.AddonPreferences):
     bl_idname = 'MBM_Workflow'
     sna_processnumber: bpy.props.IntProperty(name='ProcessNumber', description='最大进程数，同时处理这么多个区块', default=6, subtype='NONE', min=1, max=64) # type: ignore
-    sna_intervaltime: bpy.props.FloatProperty(name='IntervalTime', description='处理完每个区块，间隔一段时间再导入进来。较小值减少总时间；较大值能避免blender卡住，边导边用', default=1.0, subtype='NONE', unit='NONE', min=0.0, max=10.0, step=3, precision=1) # type: ignore
     sna_minsize: bpy.props.IntProperty(name='MinSize', description='超过这个数就会启用多进程分区块导入', default=1000000, subtype='NONE', min=1000, max=99999999) # type: ignore
 
     def draw(self, context):
-        if not (False):
-            layout = self.layout 
+        layout = self.layout
 
 
 class SNA_OT_My_Generic_Operator_A38B8(bpy.types.Operator):
@@ -715,16 +841,13 @@ class SNA_OT_My_Generic_Operator_A38B8(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        if bpy.app.version >= (3, 0, 0) and True:
-            cls.poll_message_set('')
-        return not False
+        return True
 
     def execute(self, context):
-        Variable = None
-        Variable=int(os.cpu_count()/2)
-        bpy.context.preferences.addons['MBM_Workflow'].preferences.sna_processnumber = Variable
-        bpy.context.preferences.addons['MBM_Workflow'].preferences.sna_intervaltime = 1
-        bpy.context.preferences.addons['MBM_Workflow'].preferences.sna_minsize = 1000000
+        cpu_half = max(1, int(os.cpu_count() / 2))
+        prefs = bpy.context.preferences.addons['MBM_Workflow'].preferences
+        prefs.sna_processnumber = cpu_half
+        prefs.sna_minsize = 1000000
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -876,7 +999,7 @@ class ImportWorld(bpy.types.Operator):
 
 classes=[ImportBlock,ImportSchem,ImportLitematic,MultiprocessSchem,Importjson,ImportWorld,#SelectArea,
          ImportNBT,SNA_AddonPreferences_F35F8,SNA_OT_My_Generic_Operator_A38B8,ImportSchemLiquid,MultiprocessImport,
-         ReloadBlocks]
+         MultiprocessPool,ReloadBlocks]
 
 def register():
     for cls in classes:
