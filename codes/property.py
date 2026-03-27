@@ -86,6 +86,10 @@ def get_block_items(self, context):
     return items
 
 
+def _palette_search_update(self, context):
+    self.palette_page = 0
+
+
 def update_target_id_from_enum(self, context):
     try:
         if self.target_block_enum:
@@ -146,6 +150,41 @@ class Property(bpy.types.PropertyGroup):
         max=16,
     )  # type: ignore
 
+    # 方块调色板属性
+    palette_tab: bpy.props.EnumProperty(
+        name=property_name("面板标签"),
+        items=[
+            enum_item("ALL", property_name("全部"), property_name("显示所有方块")),
+            enum_item("FAV", property_name("收藏"), property_name("显示收藏的方块")),
+            enum_item("RECENT", property_name("最近"), property_name("显示最近使用的方块")),
+        ],
+        default="ALL",
+        options={"HIDDEN"},
+    )  # type: ignore
+
+    palette_search: bpy.props.StringProperty(
+        name=property_name("搜索方块"),
+        description=property_name("搜索方块名称"),
+        update=_palette_search_update,
+        options={"TEXTEDIT_UPDATE"},
+    )  # type: ignore
+
+    palette_page: bpy.props.IntProperty(
+        default=0,
+        min=0,
+        options={"HIDDEN"},
+    )  # type: ignore
+
+    palette_favorites: bpy.props.StringProperty(
+        default="",
+        options={"HIDDEN"},
+    )  # type: ignore
+
+    palette_recent_blocks: bpy.props.StringProperty(
+        default="",
+        options={"HIDDEN"},
+    )  # type: ignore
+
     bpy.types.Scene.mods_dir = bpy.props.StringProperty(
         name=property_name("模组路径"),
         default=os.path.join(
@@ -173,12 +212,6 @@ class Property(bpy.types.PropertyGroup):
         name=property_name("颜色路径"),
         default=os.path.join(
             os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "colors"
-        ),
-    )
-    bpy.types.Scene.schems_dir = bpy.props.StringProperty(
-        name=property_name(".schem文件路径"),
-        default=os.path.join(
-            os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "schem"
         ),
     )
     bpy.types.Scene.zips_dir = bpy.props.StringProperty(
@@ -218,13 +251,6 @@ class Property(bpy.types.PropertyGroup):
         name=property_name("合并重叠顶点"), default=True
     )
 
-    JsonImportSpeed: bpy.props.FloatProperty(
-        name=property_name("导入速度(秒每个）"),
-        description=property_name("Import speed"),
-        min=0.01,
-        max=2.0,
-        default=1.0,
-    )  # type: ignore
     resourcepack_list: bpy.props.CollectionProperty(type=bpy.types.PropertyGroup)  # type: ignore
     resourcepack_list_index: bpy.props.IntProperty()  # type: ignore
 
@@ -261,11 +287,6 @@ class Property(bpy.types.PropertyGroup):
     bpy.types.Scene.save_list = bpy.props.EnumProperty(
         name=property_name("存档"),
         description=property_name("选择一个存档"),
-        items=(),
-    )
-    bpy.types.Scene.schem_list = bpy.props.EnumProperty(
-        name=property_name(".schem文件"),
-        description=property_name("选择一个.schem文件"),
         items=(),
     )
     bpy.types.Scene.color_list = bpy.props.EnumProperty(
@@ -759,8 +780,8 @@ def unzip_mods_files():
                         try:
                             # 创建新文件夹以modid命名
                             new_folder_path = os.path.join(temp_dir, mod_id)
-                        except:
-                            pass
+                        except Exception as e:
+                            print(f"[MBM] 创建模组目录失败 ({mod_id}): {e}")
                         break  # 找到fabric.mod.json后终止循环
                     elif member == "META-INF/mods.toml":
                         with zip_ref.open("META-INF/mods.toml") as mods_toml_file:
@@ -783,8 +804,8 @@ def unzip_mods_files():
                         try:
                             # 创建新文件夹以modid命名
                             new_folder_path = os.path.join(temp_dir, mod_id)
-                        except:
-                            pass
+                        except Exception as e:
+                            print(f"[MBM] 创建模组目录失败 ({mod_id}): {e}")
                         break
                     elif member == "mcmod.info":
                         with zip_ref.open("mcmod.info") as mcmod_file:
@@ -799,8 +820,8 @@ def unzip_mods_files():
                         try:
                             # 创建新文件夹以modid命名
                             new_folder_path = os.path.join(temp_dir, mod_id)
-                        except:
-                            pass
+                        except Exception as e:
+                            print(f"[MBM] 创建模组目录失败 ({mod_id}): {e}")
                         break
 
                 if mod_id:
@@ -809,8 +830,8 @@ def unzip_mods_files():
                             os.makedirs(new_folder_path)
                         elif os.path.exists(new_folder_path):
                             continue
-                    except:
-                        pass
+                    except Exception as e:
+                        print(f"[MBM] 创建目录失败 ({new_folder_path}): {e}")
 
                     # 将文件解压到新文件夹中
                     for member in zip_ref.namelist():
@@ -826,8 +847,8 @@ def unzip_mods_files():
                                 try:
                                     if not os.path.exists(dir_extract_path):
                                         os.makedirs(dir_extract_path)
-                                except:
-                                    pass
+                                except Exception as e:
+                                    print(f"[MBM] 创建解压目录失败: {e}")
                                 if not os.path.exists(extract_path):
                                     with (
                                         zip_ref.open(member) as file_in_zip,
@@ -888,8 +909,8 @@ def unzip_resourcepacks_files():
                         os.makedirs(new_folder_path)
                     elif os.path.exists(new_folder_path):
                         continue
-                except:
-                    pass
+                except Exception as e:
+                    print(f"[MBM] 创建资源包目录失败 ({new_folder_path}): {e}")
 
                 # 将文件解压到新文件夹中
                 for member in zip_ref.namelist():
@@ -903,8 +924,8 @@ def unzip_resourcepacks_files():
                             try:
                                 if not os.path.exists(dir_extract_path):
                                     os.makedirs(dir_extract_path)
-                            except:
-                                pass
+                            except Exception as e:
+                                print(f"[MBM] 创建解压目录失败: {e}")
                             if not os.path.exists(extract_path):
                                 with (
                                     zip_ref.open(member) as file_in_zip,
@@ -939,10 +960,9 @@ class UnzipModOperator(bpy.types.Operator):
         return {"RUNNING_MODAL"}
 
     def check_thread(self, thread):
-        # 检查线程是否在运行
         if not thread.is_alive():
-            return {"FINISHED"}
-        return {"RUNNING_MODAL"}
+            return None
+        return 1.0
 
 
 class UnzipResourcepacksOperator(bpy.types.Operator):
@@ -959,10 +979,9 @@ class UnzipResourcepacksOperator(bpy.types.Operator):
         return {"RUNNING_MODAL"}
 
     def check_thread(self, thread):
-        # 检查线程是否在运行
         if not thread.is_alive():
-            return {"FINISHED"}
-        return {"RUNNING_MODAL"}
+            return None
+        return 1.0
 
 
 classes = [
@@ -975,9 +994,17 @@ classes = [
 ]
 
 
+def _safe_unzip(target_fn, label):
+    def wrapper():
+        try:
+            target_fn()
+        except Exception as e:
+            print(f"[MBM] {label} 解压出错: {e}")
+    return wrapper
+
 def register():
-    threading.Thread(target=unzip_mods_files).start()
-    threading.Thread(target=unzip_resourcepacks_files).start()
+    threading.Thread(target=_safe_unzip(unzip_mods_files, "模组"), daemon=True).start()
+    threading.Thread(target=_safe_unzip(unzip_resourcepacks_files, "资源包"), daemon=True).start()
     for cls in classes:
         try:
             bpy.utils.register_class(cls)

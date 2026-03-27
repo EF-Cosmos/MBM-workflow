@@ -43,11 +43,17 @@ importlib.reload(surface_optimization)
 from .codes.functions import brush
 importlib.reload(brush)
 
+from .codes import block_palette
+importlib.reload(block_palette)
+
 from .codes.functions import paint
 importlib.reload(paint)
 
 from . import ui
 importlib.reload(ui)
+
+from .codes import block_palette_panel
+importlib.reload(block_palette_panel)
 
 module_list = (
 	property,
@@ -60,8 +66,10 @@ module_list = (
 	create_world,
 	mesh_to_mc,
 	brush,
+	block_palette,
 	paint,
 	ui,
+	block_palette_panel,
 	i18n  # 翻译模块最后注册
 )
 
