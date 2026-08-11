@@ -5,7 +5,7 @@ from bpy.app.translations import pgettext_iface as _
 from .i18n.translations import panel_label, operator_label
 
 # 依赖管理
-from .codes.dependency_manager import litemapy
+from .codes.dependency_manager import litemapy, amulet
 
 
 class MBM_PT_main_panel(bpy.types.Panel):
@@ -39,11 +39,15 @@ class MBM_PT_import_panel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
+        amulet_ok = amulet is not None
 
         row = layout.row()
         row.label(text="导入", icon="IMPORT")
+        if not amulet_ok:
+            layout.label(text="导入/导出需 amulet，当前 Blender 版本暂不可用", icon='ERROR')
         # 创建一个框
         box = layout.box()
+        box.enabled = amulet_ok
         box.label(text="导入.schem文件")
         box.operator("mbm.schem_import_panel", text="导入.schem文件")
         layout.split()
@@ -51,6 +55,7 @@ class MBM_PT_import_panel(bpy.types.Panel):
         # Litematic 导入
         if litemapy is not None:
             box = layout.box()
+            box.enabled = amulet_ok
             box.label(text="导入.litematic文件")
             box.operator("mbm.import_litematic", text="导入.litematic文件")
         else:
@@ -65,11 +70,13 @@ class MBM_PT_import_panel(bpy.types.Panel):
         box.operator("mbm.reload_blocks", text="重载失效方块", icon="FILE_REFRESH")
 
         box = layout.box()
+        box.enabled = amulet_ok
 
         box.label(text="导入.nbt文件")
         box.operator("mbm.import_nbt", text="导入.nbt文件")
 
         box = layout.box()
+        box.enabled = amulet_ok
         row = box.row()
         col = box.column()
         row.label(text="导入MC地图")
@@ -112,9 +119,14 @@ class MBM_PT_export_panel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
+        amulet_ok = amulet is not None
+        if not amulet_ok:
+            layout.label(text="导出需 amulet_nbt，当前 Blender 版本暂不可用", icon='ERROR')
         row = layout.row()
+        row.enabled = amulet_ok
         row.prop(scene, "schem_filename", text="文件名")
         row = layout.row()
+        row.enabled = amulet_ok
         row.operator("mbm.export_schem", text="导出结构")
         box = layout.box()
         box.prop(scene, "save_list", text="选择世界")
@@ -154,6 +166,9 @@ class MBM_PT_create_level(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
+        if amulet is None:
+            layout.label(text="创建存档需 amulet_nbt，当前 Blender 版本暂不可用", icon='ERROR')
+            return
 
         row = layout.row()
         row.label(text="存档", icon="WORLD")

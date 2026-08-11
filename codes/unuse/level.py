@@ -1,4 +1,11 @@
-from amulet_nbt import TAG_Compound, TAG_Int, TAG_Byte, TAG_String, TAG_Long, TAG_Double, TAG_Float, TAG_Short, TAG_List
+from .. import dependency_manager
+
+# 条件导入 amulet_nbt：依赖缺失时降级为 None（Blender 5.2 下 amulet 可能不可用）
+amulet_nbt = dependency_manager.amulet_nbt
+if amulet_nbt is not None:
+    from amulet_nbt import TAG_Compound, TAG_Int, TAG_Byte, TAG_String, TAG_Long, TAG_Double, TAG_Float, TAG_Short, TAG_List
+else:
+    TAG_Compound = TAG_Int = TAG_Byte = TAG_String = TAG_Long = TAG_Double = TAG_Float = TAG_Short = TAG_List = None
 
 
 def create_level(World_Name, SpawnX, SpawnY, SpawnZ, hardcore, Difficulty, allowCommands, LastPlayed, DayTime, Seed, GameType, OverworldGenerator_Type,

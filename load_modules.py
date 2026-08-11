@@ -81,20 +81,23 @@ def register():
 	# 注册依赖管理器（用于显示弹窗）
 	dependency_manager.register()
 
-	# 首先检查依赖
+	# 检查依赖：amulet 等缺失时降级运行（UI/编辑/笔刷可用，导入/导出禁用），
+	# 不再整体 return——各模块已对 amulet 缺失做条件化处理。
 	missing = dependency_manager.DependencyManager.check_dependencies()
 	if missing:
-		dependency_manager.DependencyManager.show_dependency_error(missing)
-		return  # 不继续注册，但 Blender 不会崩溃
+		print(f"[MBM] 依赖缺失，导入/导出将禁用: {[m[0] for m in missing]}")
 
 	# 检查可选依赖并显示警告
 	optional_missing = dependency_manager.DependencyManager.check_optional_dependencies()
 	if optional_missing:
 		dependency_manager.DependencyManager.show_optional_warning(optional_missing)
 
-	# 所有依赖可用，继续注册模块
+	# 注册所有模块（依赖缺失的子功能在各自 UI/操作符中降级）
 	for mod in module_list:
-		mod.register()
+		try:
+			mod.register()
+		except Exception as e:
+			print(f"[MBM] 注册模块失败 {mod.__name__}: {e}")
 	
 	_modules_loaded = True
 

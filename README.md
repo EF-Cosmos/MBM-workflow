@@ -193,11 +193,13 @@ MBM_workflow/
 - `doc/data-flow-diagrams.md`：数据流说明
 - `doc/dependency-update-guide.md`：依赖更新指南
 
-## 贡献者
+## 致谢与贡献者
+
+本项目基于 [BaiGave_Plugin](https://github.com/BaiGave/BaiGave_Plugin)（AGPL-3.0）进行大量重构与功能扩展。
 
 | 角色 | 贡献者 |
 |---|---|
-| 主要开发 | EF_Cosmos (GitHub) |
+| 主要开发 | EF_Cosmos |
 | 几何节点 | 火锅料理、抛瓦尔第、暗影苦力怕、Piggestpig、荒芜新谷 |
 | 着色器 | WangXinRui |
 | 多进程支持 | Piggestpig / 冬猫夏羊工作室 |
@@ -206,9 +208,3 @@ MBM_workflow/
 ## 许可证
 
 本项目采用 [AGPL-3.0](https://github.com/EF-Cosmos/MBM-workflow/blob/main/LICENSE) 许可证。
-
-## 联系与支持
-
-- QQ 群：878232347（Bug 反馈与交流）
-- Bilibili：[白给的个人空间](https://space.bilibili.com/3461563635731405)
-- GitHub Issues：[报告问题](https://github.com/EF-Cosmos/MBM-workflow/issues)

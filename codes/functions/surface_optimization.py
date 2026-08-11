@@ -2,27 +2,7 @@ import bpy
 import os
 
 
-def set_modifier_socket_value(modifier, socket_identifier, fallback_name, value, is_input=True):
-    """
-    为几何节点修饰符的 socket 设置值，兼容 Blender 5.0+
-
-    Args:
-        modifier: 几何节点修饰符
-        socket_identifier: socket 的标识符
-        fallback_name: 回退匹配时的 socket 名称关键词
-        value: 要设置的值
-        is_input: True 表示输入 socket，False 表示输出 socket
-    """
-    try:
-        modifier[socket_identifier] = value
-    except (KeyError, TypeError):
-        if not modifier.node_group:
-            return
-        sockets = modifier.node_group.inputs if is_input else modifier.node_group.outputs
-        for socket in sockets:
-            if socket.identifier == socket_identifier or fallback_name.lower() in socket.name.lower():
-                socket.default_value = value
-                break
+from .mesh_to_mc import set_modifier_socket_value
 
 
 class MapOptimize(bpy.types.Operator):

@@ -11,10 +11,9 @@ from .register import create_or_clear_collection,register_blocks,registered_bloc
 import pickle
 import json
 
-# 缓存路径常量
-SCHEMCACHE_DIR = os.path.join(
-    bpy.utils.script_path_user(), "addons", "MBM_Workflow", "schemcache"
-)
+# 缓存路径常量（基于插件包自身位置定位，兼容 legacy addons/ 与 5.x extensions 安装方式）
+_ADDON_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SCHEMCACHE_DIR = os.environ.get("MBM_SCHEMCACHE_DIR") or os.path.join(_ADDON_ROOT, "schemcache")
 VAR_CACHE_PATH = os.path.join(SCHEMCACHE_DIR, "var.json")
 
 # 使用依赖管理器导入

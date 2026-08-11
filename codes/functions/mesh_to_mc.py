@@ -7,30 +7,77 @@ from .tip import ShowMessageBox
 from ..register import register_blocks, create_or_clear_collection
 from ..block_map_store import get_block_map_text, load_block_map_safe
 from collections import defaultdict
-from amulet_nbt import TAG_Compound, TAG_Int, ByteArrayTag, IntArrayTag, ShortTag
+from .. import dependency_manager
+
+# 条件导入 amulet_nbt：依赖缺失时降级为 None，保证模块可加载（Blender 5.2 下 amulet 可能不可用）
+amulet_nbt = dependency_manager.amulet_nbt
+if amulet_nbt is not None:
+    from amulet_nbt import TAG_Compound, TAG_Int, ByteArrayTag, IntArrayTag, ShortTag
+else:
+    TAG_Compound = TAG_Int = ByteArrayTag = IntArrayTag = ShortTag = None
 
 
 def set_modifier_socket_value(modifier, socket_identifier, fallback_name, value, is_input=True):
     """
-    为几何节点修饰符的 socket 设置值，兼容 Blender 5.0+
+    为几何节点修改器的 socket 设置值，兼容 Blender 5.0 ~ 5.2+
 
     Args:
-        modifier: 几何节点修饰符
-        socket_identifier: socket 的标识符 (如 'Input_58', 'Output_2_attribute_name')
-        fallback_name: 回退匹配时的 socket 名称关键词 (如 'UV', 'attribute')
+        modifier: 几何节点修改器
+        socket_identifier: socket 标识符（如 'Input_58'、'Output_2_attribute_name'）
+        fallback_name: 回退匹配时的 socket 名称关键词（如 'UV'、'attribute'）
         value: 要设置的值
-        is_input: True 表示输入 socket，False 表示输出 socket
+        is_input: True=输入 socket，False=输出 socket
+
+    Blender 5.2 起，节点修改器输入/输出不再用 IDProperty（字典式 ``modifier[id]``），
+    改为 ``modifier.properties.inputs/outputs[<identifier>][<field>]``，其中 field 为
+    ``value``（常量）或 ``attribute_name``（输出/读取为 mesh 属性）。本函数按版本分流，
+    并用 node_group.interface 的 identifier / fallback_name 定位真实 socket。
     """
+    from ..compat import blender_version_gte
+
+    if not modifier.node_group:
+        return
+
+    # 由 socket_identifier 推断要写的字段：
+    # 'X_attribute_name' → attribute 模式（写 attribute_name 字段）；否则 value 模式。
+    if socket_identifier.endswith("_attribute_name"):
+        field = "attribute_name"
+        id_hint = socket_identifier[: -len("_attribute_name")]
+    else:
+        field = "value"
+        id_hint = socket_identifier
+
+    want_in_out = "INPUT" if is_input else "OUTPUT"
+
+    if blender_version_gte(5, 2, 0):
+        # Blender 5.2+: modifier.properties.inputs/outputs[id][field] = value
+        real_id = None
+        for item in modifier.node_group.interface.items_tree:
+            if item.in_out != want_in_out:
+                continue
+            if item.identifier == id_hint or fallback_name.lower() in item.name.lower():
+                real_id = item.identifier
+                break
+        if real_id is None:
+            return
+        props = modifier.properties.inputs if is_input else modifier.properties.outputs
+        try:
+            props[real_id][field] = value
+        except (KeyError, TypeError):
+            pass
+        return
+
+    # Blender 5.0/5.1: 字典式 IDProperty
     try:
         modifier[socket_identifier] = value
+        return
     except (KeyError, TypeError):
-        if not modifier.node_group:
-            return
-        sockets = modifier.node_group.inputs if is_input else modifier.node_group.outputs
-        for socket in sockets:
-            if socket.identifier == socket_identifier or fallback_name in socket.name:
-                socket.default_value = value
-                break
+        pass
+    sockets = modifier.node_group.inputs if is_input else modifier.node_group.outputs
+    for socket in sockets:
+        if socket.identifier == socket_identifier or fallback_name.lower() in socket.name.lower():
+            socket.default_value = value
+            break
 
 # 全局缓存来存储计算结果
 distance_cache = {}
@@ -736,15 +783,33 @@ class MergeSchemPointClouds(bpy.types.Operator):
             biome_attr[i].color = biome
 
         if source_nodes_modifier is not None:
+            from ..compat import blender_version_gte
             new_modifier = merged_obj.modifiers.new(source_nodes_modifier.name, 'NODES')
             new_modifier.node_group = source_nodes_modifier.node_group
-            for key in source_nodes_modifier.keys():
-                if key == '_RNA_UI':
-                    continue
-                try:
-                    new_modifier[key] = source_nodes_modifier[key]
-                except (TypeError, KeyError):
-                    continue
+            if blender_version_gte(5, 2, 0):
+                # Blender 5.2+: 拷贝 properties.inputs/outputs 的 value / attribute_name
+                ng = source_nodes_modifier.node_group
+                if ng is not None:
+                    for item in ng.interface.items_tree:
+                        is_in = item.in_out == "INPUT"
+                        src_props = source_nodes_modifier.properties.inputs if is_in else source_nodes_modifier.properties.outputs
+                        dst_props = new_modifier.properties.inputs if is_in else new_modifier.properties.outputs
+                        try:
+                            src_grp = src_props[item.identifier]
+                            dst_grp = dst_props[item.identifier]
+                            for field in ("value", "attribute_name"):
+                                if field in src_grp:
+                                    dst_grp[field] = src_grp[field]
+                        except (KeyError, TypeError):
+                            continue
+            else:
+                for key in source_nodes_modifier.keys():
+                    if key == '_RNA_UI':
+                        continue
+                    try:
+                        new_modifier[key] = source_nodes_modifier[key]
+                    except (TypeError, KeyError):
+                        continue
 
         for obj in valid_objects:
             bpy.data.objects.remove(obj, do_unlink=True)

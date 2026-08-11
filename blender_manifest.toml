@@ -21,7 +21,7 @@ license = [
 # Blender 5.0+ 依赖管理
 # wheels 由 Blender 自动安装，无需 install.py
 wheels = [
-   # 核心 - 跨平台
+   # 核心 - 跨平台（纯 Python，Python 3.13 兼容）
    "./wheels/amulet_core-1.9.33-py3-none-any.whl",
    "./wheels/pymctranslate-1.2.39-py3-none-any.whl",
 
@@ -33,12 +33,16 @@ wheels = [
    "./wheels/litemapy-0.9.0b0-py3-none-any.whl",
    "./wheels/nbtlib-2.0.4-py3-none-any.whl",
 
-   # Windows 特定依赖 (C扩展/平台相关)
-   "./wheels/pywin32-311-cp311-cp311-win_amd64.whl",
-   "./wheels/amulet_leveldb-1.0.2-cp311-cp311-win_amd64.whl",
-   "./wheels/lz4-4.4.5-cp311-cp311-win_amd64.whl",
-   "./wheels/amulet_nbt-2.1.5-cp311-cp311-win_amd64.whl",
-   "./wheels/pillow-12.1.0-cp311-cp311-win_amd64.whl",
+   # Windows 特定依赖（cp313，适配 Blender 5.2 / Python 3.13）
+   "./wheels/pywin32-311-cp313-cp313-win_amd64.whl",
+   "./wheels/lz4-4.4.5-cp313-cp313-win_amd64.whl",
+   "./wheels/pillow-12.1.1-cp313-cp313-win_amd64.whl",
 
-   # 注意：mutf8 已移除（无 cp311 版本，使用纯 Python 回退）
+   # 注意（Blender 5.2 适配，2026-08）：
+   # - amulet_nbt / amulet_leveldb 暂移除：稳定版（2.1.x / 1.0.x）无 cp313 wheel；
+   #   5.x alpha 虽有 cp313，但包名从 amulet_nbt 重组为 amulet.nbt，与 amulet-core
+   #   1.9.x 的顶层 import 不兼容（循环依赖）。导入/导出在 5.2 暂不可用，
+   #   待 Amulet-Team 发布 cp313 稳定 wheel 后补回。其余功能正常。
+   # - lz4/pywin32/pillow 已换 cp313（同版本号/小版本升级）。
+   # - mutf8 已移除（无 cp311 版本，使用纯 Python 回退）。
 ]

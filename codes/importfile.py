@@ -734,18 +734,21 @@ class MultiprocessPool(bpy.types.Operator):
         mp_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "multiprocess")
         processes = []
 
+        # 子进程通过环境变量接收 schemcache 绝对路径（不依赖 script_path_user()/addons/）
+        child_env = {**os.environ, "MBM_VAR_CACHE_PATH": VAR_CACHE_PATH, "MBM_SCHEMCACHE_DIR": SCHEMCACHE_DIR}
         for i in range(processnum):
             p = subprocess.Popen(
                 [bpy.app.binary_path, "--background", "--python",
                  os.path.join(mp_dir, "schem_mp.py")],
-                env={**os.environ, "MBM_CHUNK_INDEX": str(i)}
+                env={**child_env, "MBM_CHUNK_INDEX": str(i)}
             )
             processes.append(p)
 
         # 启动液体处理子进程
         p_liquid = subprocess.Popen(
             [bpy.app.binary_path, "--background", "--python",
-             os.path.join(mp_dir, "schem_liquid_mp.py")]
+             os.path.join(mp_dir, "schem_liquid_mp.py")],
+            env=child_env
         )
         processes.append(p_liquid)
 
