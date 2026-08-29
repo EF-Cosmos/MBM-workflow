@@ -19,13 +19,17 @@ license = [
 
 
 # Blender 5.0+ 依赖管理
-# wheels 由 Blender 自动安装，无需 install.py
+# wheels 由 Blender 自动安装；bl_pkg 安装前按运行时 Python 版本/平台过滤
+# （_extensions_wheel_filter_for_this_system），多标签共存互不干扰：
+# - Blender 5.0/5.1（Python 3.11）：纯 Python + cp311 全套，amulet 完整可用
+# - Blender 5.2（Python 3.13）：纯 Python + cp313；amulet C 扩展无 cp313
+#   稳定 wheel 被自动跳过 → 降级运行（导入/导出禁用，其余功能正常）
 wheels = [
-   # 核心 - 跨平台（纯 Python，Python 3.13 兼容）
-   "./wheels/amulet_core-1.9.33-py3-none-any.whl",
-   "./wheels/pymctranslate-1.2.39-py3-none-any.whl",
+   # 核心 - 纯 Python（3.11/3.13 通用）
+   "./wheels/amulet_core-1.9.44-py3-none-any.whl",
+   "./wheels/pymctranslate-1.2.47-py3-none-any.whl",
 
-   # 工具库 - 跨平台
+   # 工具库 - 纯 Python
    "./wheels/portalocker-3.2.0-py3-none-any.whl",
    "./wheels/platformdirs-4.5.1-py3-none-any.whl",
 
@@ -33,16 +37,26 @@ wheels = [
    "./wheels/litemapy-0.9.0b0-py3-none-any.whl",
    "./wheels/nbtlib-2.0.4-py3-none-any.whl",
 
-   # Windows 特定依赖（cp313，适配 Blender 5.2 / Python 3.13）
-   "./wheels/pywin32-311-cp313-cp313-win_amd64.whl",
-   "./wheels/lz4-4.4.5-cp313-cp313-win_amd64.whl",
-   "./wheels/pillow-12.1.1-cp313-cp313-win_amd64.whl",
+   # litemapy 顶层依赖（Python 3.11 无内置 typing.deprecated）
+   "./wheels/typing_extensions-4.16.0-py3-none-any.whl",
 
-   # 注意（Blender 5.2 适配，2026-08）：
-   # - amulet_nbt / amulet_leveldb 暂移除：稳定版（2.1.x / 1.0.x）无 cp313 wheel；
-   #   5.x alpha 虽有 cp313，但包名从 amulet_nbt 重组为 amulet.nbt，与 amulet-core
-   #   1.9.x 的顶层 import 不兼容（循环依赖）。导入/导出在 5.2 暂不可用，
-   #   待 Amulet-Team 发布 cp313 稳定 wheel 后补回。其余功能正常。
-   # - lz4/pywin32/pillow 已换 cp313（同版本号/小版本升级）。
-   # - mutf8 已移除（无 cp311 版本，使用纯 Python 回退）。
+   # Windows C 扩展 - cp311（Blender 5.0/5.1）
+   "./wheels/lz4-4.4.5-cp311-cp311-win_amd64.whl",
+   "./wheels/pillow-12.3.0-cp311-cp311-win_amd64.whl",
+   "./wheels/pywin32-312-cp311-cp311-win_amd64.whl",
+
+   # amulet C 扩展 - 仅 cp311（Blender ≤5.1 完整功能；5.2 自动跳过并降级）
+   # 上游稳定线无 cp313 wheel（2026-04 起 alpha 已转 cp314-only，3.13 被跳过），
+   # 待 Amulet-Team 发布 cp313 稳定 wheel 后补齐 5.2 导入/导出。
+   # amulet_rocksdb 为 amulet-core 1.9.44 新增依赖。
+   "./wheels/amulet_nbt-2.1.8-cp311-cp311-win_amd64.whl",
+   "./wheels/amulet_leveldb-1.0.7-cp311-cp311-win_amd64.whl",
+   "./wheels/amulet_rocksdb-1.0.5-cp311-cp311-win_amd64.whl",
+
+   # Windows C 扩展 - cp313（Blender 5.2 / Python 3.13）
+   "./wheels/lz4-4.4.5-cp313-cp313-win_amd64.whl",
+   "./wheels/pillow-12.3.0-cp313-cp313-win_amd64.whl",
+   "./wheels/pywin32-312-cp313-cp313-win_amd64.whl",
+
+   # 注：mutf8 已移除（无 cp311 版本，使用纯 Python 回退）
 ]
