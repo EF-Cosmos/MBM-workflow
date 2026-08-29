@@ -8,8 +8,29 @@ Blender 5.0+ 插件（MBM Workflow），在 Blender 内导入、编辑、导出 
 
 ## 常用命令
 
+### ZCode 实时调试（dev 环境，推荐）
+
 ```bash
-# Blender 控制台重载插件
+# 启动：自动探测 Steam/标准安装的 Blender，注入插件，日志写入 temp/blender_dev.log
+python dev/start_blender.py
+
+# 在运行中的 Blender 里执行任意 Python 并取回输出（命名空间持久，bpy 已预导入）
+python dev/send_cmd.py -c "print(list(bpy.data.objects))"
+
+# 暂停/恢复自动热重载（跑长任务导入前建议暂停）
+python dev/send_cmd.py -c "import mbm_dev as d; d.pause_reload()"
+python dev/send_cmd.py -c "import mbm_dev as d; d.resume_reload()"
+```
+
+- 修改任意源码文件后约 2 秒自动热重载（unregister → importlib.reload → register），输出与 traceback 实时进入 `temp/blender_dev.log`
+- dev 实例启动时会自动停用已安装的 release 扩展副本，避免双重注册
+- 执行桥里 `INVOKE_DEFAULT` 弹窗类操作符可能失败（timer 上下文），优先用 execute 模式或到界面手动触发
+- 多进程导入（schem_mp）仍使用用户 addons 目录下已安装副本的路径，与发布版行为一致
+
+### Blender 内直接操作
+
+```python
+# Blender Python 控制台手动重载插件
 import importlib; import MBM_workflow.load_modules as m; importlib.reload(m); m.register()
 
 # 查看方块映射
@@ -18,10 +39,12 @@ id_map = eval(bpy.data.texts.get("Blocks.py").as_string())
 # 导入/测试
 bpy.ops.mbm.import_schem(filepath='/path/to/file.schem')
 bpy.ops.mbm.import_litematic(filepath='/path/to/file.litematic')
-python test_version_support.py  # 在 Blender 脚本编辑器中运行
+
+# 测试版本支持（在 Blender 脚本编辑器中运行）
+python test_version_support.py
 ```
 
-调试输出：窗口 → 切换系统控制台查看 `print()`。
+调试输出：dev 模式看 `temp/blender_dev.log`；手动模式用窗口 → 切换系统控制台。
 
 ## 核心架构
 

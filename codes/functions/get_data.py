@@ -2,7 +2,6 @@ import json
 import os
 from importlib import reload
 from ... import config
-#file_data_cache = {}
 global_filepath = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 json_file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),"icons", "modid.json")
 
@@ -45,10 +44,15 @@ def search_ctm_properties(folder_path,id):
                         return path, ctm
 
 def get_all_data(filepath, filename,rot=0):
+    # 调用方（blockstates.get_model）会对返回的 textures/elements 原地 update/extend，
+    # 因此命中缓存时返回浅拷贝，避免跨调用互相污染
+    cache_key = (filepath, filename, rot)
+    cached = file_data_cache.get(cache_key)
+    if cached is not None:
+        textures, elements, parent = cached
+        return dict(textures), list(elements), parent
+
     parent =None
-    # if (filepath, filename,rot) in file_data_cache:
-    #     textures, elements,parent = file_data_cache[(filepath, filename,rot)]
-    # else:
     textures = {}
     elements = []
     def extract_textures_and_elements(data):
@@ -81,10 +85,35 @@ def get_all_data(filepath, filename,rot=0):
         extract_textures_and_elements(data)
         textures, elements = process_data(data)
 
-        #file_data_cache[(filepath, filename,rot)] = (textures, elements , parent)
+        file_data_cache[cache_key] = (textures, elements, parent)
     return textures, elements ,parent
-def get_file_path(modid,type):
+
+# 模型文件解析缓存：(filepath, filename, rot) -> (textures, elements, parent)
+file_data_cache = {}
+# get_file_path 命中缓存：键含 config 指纹，用户在 UI 里重读模组/资源包目录后自动失效
+_file_path_cache = {}
+
+
+def _config_fingerprint():
+    return (config.config["version"],
+            tuple(config.config["mod_list"]),
+            tuple(config.config["resourcepack_list"]))
+
+
+def get_file_path(modid, type):
     reload(config)
+    cache_key = (modid, type, _config_fingerprint())
+    cached = _file_path_cache.get(cache_key)
+    if cached is not None:
+        return cached
+    result = _get_file_path_uncached(modid, type)
+    # 只缓存命中结果：未命中的探测保留原语义，用户往 temp/ 补文件后无需重启
+    if result is not None:
+        _file_path_cache[cache_key] = result
+    return result
+
+
+def _get_file_path_uncached(modid,type):
     filepath = global_filepath + "\\temp\\"
     Pos = modid.find(":")
     mod = ""

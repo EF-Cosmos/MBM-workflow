@@ -4,11 +4,16 @@ import time
 import re
 import subprocess
 
+import numpy as np
+
 from .block import block
 from .functions.get_data import get_all_data
 from .classification_files.block_type import exclude
-from .schem import schem_chunk,schem_liquid,schem,remove_brackets,separate_vertices_by_blockid,separate_vertices_by_chunk,litematic_to_mesh,merge_chunks,SCHEMCACHE_DIR,VAR_CACHE_PATH
+from .schem import (schem_chunk, schem_liquid, schem, remove_brackets, collect_blocks,
+                    separate_vertices_by_blockid, separate_vertices_by_chunk,
+                    litematic_to_mesh, merge_chunks, SCHEMCACHE_DIR, VAR_CACHE_PATH)
 from .functions.mesh_to_mc import create_mesh_from_dictionary,create_or_clear_collection
+from .pointcloud import ensure_geometry_nodes_group, attach_schem_modifier, build_point_cloud_mesh
 from .register import register_blocks
 from .block_map_store import load_block_map, save_block_map
 from . import dependency_manager
@@ -20,7 +25,7 @@ amulet_nbt = dependency_manager.amulet_nbt
 
 
 def write_var_cache(schempath, chunks, name, x_list, processnum):
-    """将多进程共享数据写入 var.json（替代不安全的 pickle）"""
+    """多进程共享数据写入 var.json（替代不安全的 pickle）"""
     os.makedirs(SCHEMCACHE_DIR, exist_ok=True)
     data = {
         "schempath": schempath,
@@ -31,6 +36,47 @@ def write_var_cache(schempath, chunks, name, x_list, processnum):
     }
     with open(VAR_CACHE_PATH, 'w') as f:
         json.dump(data, f)
+
+
+def link_colormap_to_materials():
+    """把所有材质中名为"色图"的 TEX_IMAGE 节点指向 colormap 图像。
+
+    保留原有的全量扫描语义（旧材质也会被重新指向本次导入的 colormap）。
+    """
+    for material in bpy.data.materials:
+        try:
+            for node in material.node_tree.nodes:
+                if node.type == 'TEX_IMAGE' and node.name == '色图':
+                    node.image = bpy.data.images.get("colormap")
+        except Exception as e:
+            print("材质出错了:", e)
+
+
+def _decode_litematica_bit_array(bit_array):
+    """numpy 批量解开 LitematicaBitArray 的紧凑位存储（等价于逐项 __getitem__）。
+
+    条目 i 占据第 [i*nbits, (i+1)*nbits) 位，至多跨两个 64 位字；
+    畸形数据的越界条目按 0（空气）处理，与原逐格 except 分支一致。
+    """
+    size = bit_array.size
+    nbits = bit_array.nbits  # 类注解写作 nbit，实际属性名是 nbits
+    words = np.array(bit_array.array, dtype=np.uint64)
+    n_words = len(words)
+    offs = np.arange(size, dtype=np.uint64) * np.uint64(nbits)
+    w_idx = offs >> np.uint64(6)
+    b_off = offs & np.uint64(63)
+    if n_words:
+        safe_idx = np.minimum(w_idx, np.uint64(n_words - 1))
+    else:
+        safe_idx = np.zeros(size, dtype=np.uint64)
+    vals = words[safe_idx] >> b_off
+    # 跨字的条目：高位部分来自下一个字（b_off==0 时移位量按 0 处理避免越界移位）
+    spill = (b_off + np.uint64(nbits)) > np.uint64(64)
+    if spill.any() and n_words:
+        next_idx = np.minimum(w_idx + np.uint64(1), np.uint64(n_words - 1))
+        shift = np.where(b_off == 0, np.uint64(0), np.uint64(64) - b_off)
+        vals = np.where(spill, vals | (words[next_idx] << shift), vals)
+    return (vals & np.uint64((1 << nbits) - 1)).astype(np.uint32)
 
 
 class ImportBlock(bpy.types.Operator):
@@ -195,78 +241,65 @@ class ImportSchem(bpy.types.Operator):
             level = amulet.load_level(self.filepath)
             chunks = [list(point) for point in level.bounds("main").bounds]
 
-            # 判断方块数量，超过阈值自动启用多进程
-            total_blocks = ((chunks[1][0] - chunks[0][0]) *
-                            (chunks[1][1] - chunks[0][1]) *
-                            (chunks[1][2] - chunks[0][2]))
-            prefs = context.preferences.addons.get('MBM_Workflow')
-            if prefs and total_blocks >= prefs.preferences.sna_minsize:
-                level.close()
-                print(f"[MBM] 方块数 {total_blocks} >= 阈值 {prefs.preferences.sna_minsize}，自动启用多进程")
-                bpy.ops.mbm.multiprocess_pool(filepath=self.filepath)
-                return {'FINISHED'}
+            wm = context.window_manager
+            wm.progress_begin(0, 100)
+            try:
+                # 判断方块数量，超过阈值自动启用多进程
+                total_blocks = ((chunks[1][0] - chunks[0][0]) *
+                                (chunks[1][1] - chunks[0][1]) *
+                                (chunks[1][2] - chunks[0][2]))
+                prefs = context.preferences.addons.get('MBM_Workflow')
+                if prefs and total_blocks >= prefs.preferences.sna_minsize:
+                    level.close()
+                    print(f"[MBM] 方块数 {total_blocks} >= 阈值 {prefs.preferences.sna_minsize}，自动启用多进程")
+                    bpy.ops.mbm.multiprocess_pool(filepath=self.filepath)
+                    continue
 
-            # 使用公共 API 加载 NBT 数据
-            with open(self.filepath, "rb") as f:
-                nbt_data = amulet_nbt.load(f)
-            
-            #data=nbt_data["BlockEntities"][0]["data"]["data"]
-            # 解析数据为坐标点
-            # coordinates = []
-            # for i in range(0, len(data), 3):
-            #     x = data[i]
-            #     y = data[i + 1]
-            #     z = data[i + 2]
-            #     coordinates.append((x, y, z))
+                # 使用公共 API 加载 NBT 数据
+                with open(self.filepath, "rb") as f:
+                    nbt_data = amulet_nbt.load(f)
 
-            # # 构建字典
-            # coordinates_dict = {f"Point {index + 1}": point for index, point in enumerate(coordinates)}
+                size = {
+                    "x":int(nbt_data["Width"]),
+                    "y":int(nbt_data["Height"]),
+                    "z":int(nbt_data["Length"])
+                }
 
-            size = {
-                "x":int(nbt_data["Width"]),
-                "y":int(nbt_data["Height"]),
-                "z":int(nbt_data["Length"])
-            }
-            
-            # 设置图片的大小和颜色
-            image_width = int(size["z"])
-            image_height = int(size["x"])
-            default_color = (0.47, 0.75, 0.35, 1.0)  # RGBA颜色，对应#79c05a
+                # 设置图片的大小和颜色
+                image_width = int(size["z"])
+                image_height = int(size["x"])
+                default_color = (0.47, 0.75, 0.35, 1.0)  # RGBA颜色，对应#79c05a
 
-            # 创建一个新的图片
-            image = bpy.data.images.new("colormap", width=image_width, height=image_height)
-            image.use_fake_user = True
+                # 创建一个新的图片
+                image = bpy.data.images.new("colormap", width=image_width, height=image_height)
+                image.use_fake_user = True
 
-            # 使用 foreach_set 设置默认颜色（替代非线程安全的像素线程操作）
-            pixel_count = image_width * image_height * 4
-            pixels = [c for _ in range(image_width * image_height) for c in default_color]
-            image.pixels.foreach_set(pixels)
-            start_time = time.time()
+                # 使用 foreach_set 设置默认颜色（替代非线程安全的像素线程操作）
+                pixel_count = image_width * image_height * 4
+                pixels = [c for _ in range(image_width * image_height) for c in default_color]
+                image.pixels.foreach_set(pixels)
+                start_time = time.time()
 
-            obj=schem(level,chunks,False,name)
-            if context.scene.separate_vertices_by_blockid ==True:
-                separate_vertices_by_blockid(obj)
-            elif context.scene.separate_vertices_by_chunk ==True:
-                separate_vertices_by_chunk(obj)
-            schem_liquid(level,chunks)
+                wm.progress_update(10)
+                obj=schem(level,chunks,False,name)
+                wm.progress_update(60)
+                if context.scene.separate_vertices_by_blockid ==True:
+                    separate_vertices_by_blockid(obj)
+                elif context.scene.separate_vertices_by_chunk ==True:
+                    separate_vertices_by_chunk(obj)
+                wm.progress_update(70)
+                schem_liquid(level,chunks)
+                wm.progress_update(95)
+            finally:
+                wm.progress_end()
 
             end_time = time.time()
             execution_time = end_time - start_time
 
             print("程序运行时间为：", execution_time, "秒")
-            materials = bpy.data.materials
-            for material in materials:
-                try:
-                    node_tree = material.node_tree
-                    nodes = node_tree.nodes
-                    for node in nodes:
-                        if node.type == 'TEX_IMAGE':
-                            if node.name == '色图':
-                                node.image = bpy.data.images.get("colormap")
-                except Exception as e:
-                    print("材质出错了:", e)
+            link_colormap_to_materials()
 
-            
+
 
         return {'FINISHED'}
     
@@ -436,43 +469,24 @@ class ImportLitematic(bpy.types.Operator):
                         bit_array = LitematicaBitArray.from_nbt_long_array(blocks, abs(w*h*l), nbits)
                         
                         block_grid = getattr(region, "_Region__blocks")
-                        
+
                         # Safe assignment
-                        total_blocks = abs(w * h * l)
                         palette_len = len(palette_list)
-                        
-                        for i in range(total_blocks):
-                            # Calc coords
-                            # ind = (y * abs(width * length)) + z * abs(width) + x
-                            # We can just iterate linearly if we match the loop order
-                            pass
-                            
-                        # The original code loop:
-                        # for x in range(abs(width)):
-                        #     for y in range(abs(height)):
-                        #         for z in range(abs(length)):
-                        #             ind = (y * abs(width * length)) + z * abs(width) + x
-                        #             bit_array[ind]
-                        
-                        # If bit_array[ind] fails, it means ind >= len(bit_array).
-                        # If assigning fails, it means block_grid is not right shape (unlikely if init correct)
-                        # Or palette index is out of range? block_grid stores indices.
-                        
+
                         width_abs, height_abs, length_abs = abs(w), abs(h), abs(l)
-                        
-                        # Using try-except inside loop is slow but safe
-                        for x_i in range(width_abs):
-                            for y_i in range(height_abs):
-                                for z_i in range(length_abs):
-                                    ind = (y_i * width_abs * length_abs) + z_i * width_abs + x_i
-                                    try:
-                                        val = bit_array[ind]
-                                        # Clamp value to palette range
-                                        if val >= palette_len:
-                                            val = 0 # Air
-                                        block_grid[x_i][y_i][z_i] = val
-                                    except IndexError:
-                                        block_grid[x_i][y_i][z_i] = 0 # Default/Air
+
+                        # numpy 批量解码替代逐格 try/except 循环：
+                        # ind = (y * W * L) + z * W + x，即按 (y, z, x) 行序铺开
+                        decoded = _decode_litematica_bit_array(bit_array)
+                        total_blocks = abs(w * h * l)
+                        if len(decoded) < total_blocks:
+                            decoded = np.concatenate([
+                                decoded,
+                                np.zeros(total_blocks - len(decoded), dtype=np.uint32)])
+                        decoded = decoded[:total_blocks]
+                        decoded[decoded >= palette_len] = 0  # 越界索引按空气处理
+                        block_grid[:, :, :] = decoded.reshape(
+                            height_abs, length_abs, width_abs).transpose(2, 0, 1)
 
                         return region
 
@@ -513,58 +527,76 @@ class ImportLitematic(bpy.types.Operator):
 
             region_count = len(schem.regions)
 
-            for region_name, region in schem.regions.items():
-                # 尝试修复 invalid index issues (导致 list index out of range)
-                try:
-                    # 访问私有属性 (name mangling: Region -> _Region)
-                    blocks = getattr(region, "_Region__blocks", None)
-                    palette = getattr(region, "_Region__palette", None)
-                    
-                    if blocks is not None and palette is not None:
-                        import numpy as np
-                        p_len = len(palette)
-                        if p_len > 0 and isinstance(blocks, np.ndarray):
-                             # 检查是否有超出调色板范围的索引
-                             # 注意: numpy.any() 可能会比较慢，但比起崩溃要好
-                             if np.any(blocks >= p_len):
-                                 print(f"[Import Fix] 在区域 '{region_name}' 中发现无效的方块索引。正在修正...")
-                                 # 将无效索引重置为 0 (通常是 minecraft:air)
-                                 blocks[blocks >= p_len] = 0
-                except Exception as e:
-                    print(f"[Import Fix] 尝试修复区域数据时出错: {e}")
-
-                # 处理单个区域数据
-                block_dict, bounds = self._process_single_region(region, region_name)
-
-                if not block_dict:
-                    print(f"区域 '{region_name}' 不包含任何方块，跳过")
-                    continue
-
-                # 生成对象名称：单区域使用原文件名，多区域添加区域后缀
-                if region_count == 1:
-                    obj_filename = base_filename
-                else:
-                    obj_filename = f"{base_filename}_{region_name}"
-
-                # 创建网格对象
-                obj = litematic_to_mesh(block_dict, bounds, obj_filename)
-
-                # 应用可选的顶点分离
-                if context.scene.separate_vertices_by_blockid:
-                    separate_vertices_by_blockid(obj)
-                elif context.scene.separate_vertices_by_chunk:
-                    separate_vertices_by_chunk(obj)
+            wm = context.window_manager
+            wm.progress_begin(0, region_count)
+            try:
+                for region_index, (region_name, region) in enumerate(schem.regions.items()):
+                    wm.progress_update(region_index)
+                    self._load_single_region(context, region, region_name, base_filename,
+                                             region_count == 1)
+            finally:
+                wm.progress_end()
 
             print(f"成功导入 {region_count} 个区域")
 
         return {'FINISHED'}
 
+    def _load_single_region(self, context, region, region_name, base_filename, single_region):
+        # 尝试修复 invalid index issues (导致 list index out of range)
+        try:
+            # 访问私有属性 (name mangling: Region -> _Region)
+            blocks = getattr(region, "_Region__blocks", None)
+            palette = getattr(region, "_Region__palette", None)
+
+            if blocks is not None and palette is not None:
+                import numpy as np
+                p_len = len(palette)
+                if p_len > 0 and isinstance(blocks, np.ndarray):
+                     # 检查是否有超出调色板范围的索引
+                     # 注意: numpy.any() 可能会比较慢，但比起崩溃要好
+                     if np.any(blocks >= p_len):
+                         print(f"[Import Fix] 在区域 '{region_name}' 中发现无效的方块索引。正在修正...")
+                         # 将无效索引重置为 0 (通常是 minecraft:air)
+                         blocks[blocks >= p_len] = 0
+        except Exception as e:
+            print(f"[Import Fix] 尝试修复区域数据时出错: {e}")
+
+        # 处理单个区域数据
+        block_dict, bounds = self._process_single_region(region, region_name)
+
+        if not block_dict:
+            print(f"区域 '{region_name}' 不包含任何方块，跳过")
+            return
+
+        # 生成对象名称：单区域使用原文件名，多区域添加区域后缀
+        if single_region:
+            obj_filename = base_filename
+        else:
+            obj_filename = f"{base_filename}_{region_name}"
+
+        # 创建网格对象
+        obj = litematic_to_mesh(block_dict, bounds, obj_filename)
+
+        # 应用可选的顶点分离
+        if context.scene.separate_vertices_by_blockid:
+            separate_vertices_by_blockid(obj)
+        elif context.scene.separate_vertices_by_chunk:
+            separate_vertices_by_chunk(obj)
+
     def _process_single_region(self, region, region_name):
         """处理单个区域，返回方块字典和边界"""
         from .classification_files.block_type import exclude
 
+        # 优先 numpy 批量路径：直接读 Region 内部的调色板索引数组
+        blocks = getattr(region, "_Region__blocks", None)
+        if isinstance(blocks, np.ndarray):
+            return self._process_region_numpy(region, blocks, exclude)
+
+        # 回退：逐格访问（原实现）
         block_dict = {}
-        all_coords = []
+        format_cache = {}  # 相同 BlockState 内容只格式化一次
+        min_x = min_y = min_z = None
+        max_x = max_y = max_z = None
 
         for x, y, z in region.block_positions():
             block = region[x, y, z]
@@ -572,46 +604,99 @@ class ImportLitematic(bpy.types.Operator):
             if block.id == "minecraft:air":
                 continue
 
-            block_str = self._format_block_state(block)
-            base_block = self._remove_brackets(block_str)
+            props = getattr(block, 'properties', None) or {}
+            cache_key = (block.id, tuple(props.items()))
+            block_str = format_cache.get(cache_key)
+            if block_str is None:
+                block_str = self._format_block_state(block)
+                format_cache[cache_key] = block_str
+
+            base_block = block_str.split('[', 1)[0]
 
             if base_block in exclude:
                 continue
 
-            # 使用区域相对坐标
+            # 使用区域相对坐标，同时单趟维护边界
             block_dict[(x, y, z)] = block_str
-            all_coords.append((x, y, z))
+            if min_x is None:
+                min_x = max_x = x
+                min_y = max_y = y
+                min_z = max_z = z
+            else:
+                if x < min_x: min_x = x
+                elif x > max_x: max_x = x
+                if y < min_y: min_y = y
+                elif y > max_y: max_y = y
+                if z < min_z: min_z = z
+                elif z > max_z: max_z = z
 
         # 计算边界
-        if all_coords:
-            min_coords = tuple(min(coords[i] for coords in all_coords) for i in range(3))
-            max_coords = tuple(max(coords[i] for coords in all_coords) for i in range(3))
-        else:
+        if min_x is None:
             min_coords = (0, 0, 0)
             max_coords = (0, 0, 0)
+        else:
+            min_coords = (min_x, min_y, min_z)
+            max_coords = (max_x, max_y, max_z)
 
+        return block_dict, (min_coords, max_coords)
+
+    def _process_region_numpy(self, region, blocks, exclude):
+        """numpy 批量读取 Region：调色板只格式化一次，argwhere 一次取出全部保留格。
+
+        与逐格路径等价：region.palette 触发 _optimize_palette 后与 __getitem__
+        读到的同一份内部数据一致；负尺寸区域的存储坐标按
+        __region_coordinates_to_store_coordinates 的互逆映射翻转回区域坐标。
+        """
+        W, H, L = blocks.shape
+        palette = region.palette
+        n = len(palette)
+        fmt = [None] * n
+        keep = np.zeros(n, dtype=bool)
+        for p, block in enumerate(palette):
+            if block.id == "minecraft:air":
+                continue
+            block_str = self._format_block_state(block)
+            if block_str.split('[', 1)[0] in exclude:
+                continue
+            fmt[p] = block_str
+            keep[p] = True
+
+        mask = keep[blocks]
+        rel = np.argwhere(mask)  # (N, 3) 存储坐标 (x, y, z)
+        vals = blocks[mask]
+        # 存储坐标 → 区域坐标：负尺寸区域做平移（region = store + dim + 1），
+        # 与 __region_coordinates_to_store_coordinates（store = region - dim - 1）互逆
+        if region.width < 0:
+            rel[:, 0] += region.width + 1
+        if region.height < 0:
+            rel[:, 1] += region.height + 1
+        if region.length < 0:
+            rel[:, 2] += region.length + 1
+
+        block_dict = {}
+        for x, y, z, p in zip(rel[:, 0].tolist(), rel[:, 1].tolist(),
+                              rel[:, 2].tolist(), vals.tolist()):
+            block_dict[(x, y, z)] = fmt[p]
+
+        if block_dict:
+            min_coords = (int(rel[:, 0].min()), int(rel[:, 1].min()), int(rel[:, 2].min()))
+            max_coords = (int(rel[:, 0].max()), int(rel[:, 1].max()), int(rel[:, 2].max()))
+        else:
+            min_coords = max_coords = (0, 0, 0)
         return block_dict, (min_coords, max_coords)
 
     def _format_block_state(self, block):
         """格式化方块状态字符串"""
         block_str = block.id
-        if hasattr(block, 'properties') and block.properties:
-            props = ','.join(f"{k}={v}" for k, v in block.properties.items())
+        props = getattr(block, 'properties', None)
+        if props:
+            props = ','.join(f"{k}={v}" for k, v in props.items())
             block_str = f"{block.id}[{props}]"
         return block_str
 
     def _remove_brackets(self, input_string):
         """移除方括号内容获取基础方块名"""
-        output_string = ""
-        inside_brackets = False
-        for char in input_string:
-            if char == '[':
-                inside_brackets = True
-            elif char == ']' and inside_brackets:
-                inside_brackets = False
-            elif not inside_brackets:
-                output_string += char
-        return output_string
+        return input_string.split('[', 1)[0]
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
@@ -628,7 +713,6 @@ class MultiprocessImport(bpy.types.Operator):
     def execute(self, context):
         with open(VAR_CACHE_PATH, 'r') as f:
             data = json.load(f)
-        schempath = data["schempath"]
         chunks = data["chunks"]
         name = data["name"]
         processnum = data["processnum"]
@@ -637,20 +721,10 @@ class MultiprocessImport(bpy.types.Operator):
         merge_chunks(processnum, name)
 
         # 使用合并后的数据创建最终网格
-        level = amulet.load_level(schempath)
-        schem(level, chunks, True, name)
+        # cached=True 分支只读 pickle，不再需要重新加载 schem 文件
+        schem(None, chunks, True, name)
 
-        materials = bpy.data.materials
-        for material in materials:
-            try:
-                node_tree = material.node_tree
-                nodes = node_tree.nodes
-                for node in nodes:
-                    if node.type == 'TEX_IMAGE':
-                        if node.name == '色图':
-                            node.image = bpy.data.images.get("colormap")
-            except Exception as e:
-                print("材质出错了:", e)
+        link_colormap_to_materials()
 
         return {'FINISHED'}
     def invoke(self, context, event):
@@ -913,85 +987,27 @@ class ImportWorld(bpy.types.Operator):
         level = amulet.load_level(self.filepath)
         min_coords=context.scene.min_coordinates
         max_coords=context.scene.max_coordinates
-        # 创建一个新的网格对象
-        mesh = bpy.data.meshes.new(name=filename)
-        mesh.attributes.new(name='blockid', type="INT", domain="POINT")
-        mesh.attributes.new(name='biome', type="FLOAT_COLOR", domain="POINT")
-        obj = bpy.data.objects.new(filename, mesh)
-
-        # 将对象添加到场景中
-        scene = bpy.context.scene
-        scene.collection.objects.link(obj)
         # 创建一个新的集合
         collection_name="Blocks"
         create_or_clear_collection(collection_name)
         collection =bpy.data.collections.get(collection_name)
-        nodetree_target = "Schem"
-
         #导入几何节点
+        ensure_geometry_nodes_group(collection_name)
+        wm = context.window_manager
+        wm.progress_begin(0, 100)
         try:
-            nodes_modifier.node_group = bpy.data.node_groups[collection_name]
-        except:
-            file_path =bpy.context.scene.geometrynodes_blend_path
-            inner_path = 'NodeTree'
-            object_name = nodetree_target
-            bpy.ops.wm.append(
-                filepath=os.path.join(file_path, inner_path, object_name),
-                directory=os.path.join(file_path, inner_path),
-                filename=object_name
-            )
-        # 创建顶点和顶点索引
-        vertices = []
-        ids = []  # 存储顶点id
-        # 遍历范围内所有的坐标
-        for x in range(min_coords[0], max_coords[0] + 1):
-            for y in range(min_coords[1], max_coords[1] + 1):
-                for z in range(min_coords[2], max_coords[2] + 1):
-                    # 获取坐标处的方块       
-                    blc = level.get_version_block(x, y, z, "minecraft:overworld", (platform, version))
-                    id =blc[0]
-                    if isinstance(id,amulet.api.block.Block):
-                        id = str(id).replace('"', '')
-                        result = remove_brackets(id) 
-                        if result not in exclude:  
-                            # 将字符串id映射到数字，如果id已经有对应的数字id，则使用现有的数字id
-                            vertices.append((x-min_coords[0],-(z-min_coords[2]),y-min_coords[1]))
-                            # 将字符串id转换为相应的数字id
-                            ids.append(id)
+            wm.progress_update(10)
+            # chunk 级批量读取（翻译器内部带缓存），失败自动回退逐格路径
+            vertices, ids, _waterlogged = collect_blocks(
+                level, "minecraft:overworld", min_coords, max_coords, platform, version)
+            wm.progress_update(80)
+        finally:
+            wm.progress_end()
 
         id_map=register_blocks(list(set(ids)))
-        # 将顶点和顶点索引添加到网格中
-        mesh.from_pydata(vertices, [], [])
-        for i, item in enumerate(obj.data.attributes['blockid'].data):
-            id =re.escape(ids[i])
-            item.value=id_map[id]
-        #群系上色
-        for i, item in enumerate(obj.data.attributes['biome'].data):
-            item.color[:]=(0.149,0.660,0.10,0.00)
-        # 设置顶点索引
-        mesh.update()
-        
-        # 检查是否有节点修改器，如果没有则添加一个
-        has_nodes_modifier = False
-        for modifier in obj.modifiers:
-            if modifier.type == 'NODES':
-                has_nodes_modifier = True
-                break
-        if not has_nodes_modifier:
-            obj.modifiers.new(name="Schem",type="NODES")
-        nodes_modifier=obj.modifiers[0]
-        
-        # 复制 Schem 节点组并重命名为 CollectionName
-        try:
-            original_node_group = bpy.data.node_groups['Schem']
-            new_node_group = original_node_group.copy()
-            new_node_group.name = collection_name
-        except KeyError:
-            print("error")
-        #设置几何节点        
-        nodes_modifier.node_group = bpy.data.node_groups[collection_name]
-        bpy.data.node_groups[collection_name].nodes["集合信息"].inputs[0].default_value = collection
-        nodes_modifier.show_viewport = True    
+        # 创建点云对象并批量写入顶点与属性（原路径无 waterlogged 属性）
+        obj = build_point_cloud_mesh(filename, vertices, ids, id_map, with_waterlogged=False)
+        attach_schem_modifier(obj, collection_name)
         level.close()
         return {'FINISHED'}
     

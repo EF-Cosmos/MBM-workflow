@@ -32,3 +32,6 @@ i18n/locales/**/*.mo
 # 打包产物
 dist/
 
+# dev 调试环境的机器相关缓存（blender.exe 路径）
+dev/blender_path.txt
+

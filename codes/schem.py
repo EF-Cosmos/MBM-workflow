@@ -8,6 +8,8 @@ from .classification_files.block_type import liquid,exclude
 import numpy as np
 import os
 from .register import create_or_clear_collection,register_blocks,registered_blocks
+from .pointcloud import (BIOME_COLOR, ensure_geometry_nodes_group,
+                         attach_schem_modifier, build_point_cloud_mesh)
 import pickle
 import json
 
@@ -40,20 +42,125 @@ def get_mc_version_config():
         return "java", (1, 21, 9)
 
 
-#用于删除[]的部分 
+#用于删除[]的部分
 def remove_brackets(input_string):
-    output_string = ""
-    inside_brackets = False
+    start = input_string.find('[')
+    if start == -1:
+        return input_string
+    end = input_string.find(']', start)
+    return input_string[:start] if end == -1 else input_string[:start] + input_string[end + 1:]
 
-    for char in input_string:
-        if char == '[':
-            inside_brackets = True
-        elif char == ']' and inside_brackets:
-            inside_brackets = False
-        elif not inside_brackets:
-            output_string += char
 
-    return output_string
+_MISSING = object()
+
+
+def _selection_for_chunks(chunks):
+    """把 [(min), (max)] 坐标范围转成 amulet SelectionBox（max 闭区间 → 半开区间）"""
+    from amulet.api.selection import SelectionBox
+    min_coords, max_coords = chunks[0], chunks[1]
+    return SelectionBox(
+        (min_coords[0], min_coords[1], min_coords[2]),
+        (max_coords[0] + 1, max_coords[1] + 1, max_coords[2] + 1),
+    )
+
+
+def _collect_blocks_fast(level, dimension, min_coords, max_coords, platform, version):
+    """chunk 级 numpy 批量读取，返回 (顶点数组, id字符串列表, waterlogged数组)。
+
+    每个 chunk 只翻译一次调色板，再用布尔查找表 + argwhere 批量提取，
+    彻底绕开逐格 get_block 的 Python 调用开销。
+    amulet API 不符时抛异常，由调用方回退逐格路径。
+    """
+    translate = _make_translator(level, platform, version)
+    verts_parts = []
+    ids_parts = []
+    wl_parts = []
+    for chunk, slices, box in level.get_chunk_slice_box(
+            dimension, _selection_for_chunks((min_coords, max_coords))):
+        arr = np.asarray(chunk.blocks[slices])
+        palette_blocks = chunk.block_palette.blocks
+        n = len(palette_blocks)
+        id_lut = np.empty(n, dtype=object)
+        keep_lut = np.zeros(n, dtype=bool)
+        wl_lut = np.zeros(n, dtype=np.int32)
+        for p, block in enumerate(palette_blocks):
+            id_str, base_name = translate(block)
+            if id_str is not None and base_name not in exclude:
+                id_lut[p] = id_str
+                keep_lut[p] = True
+                wl_lut[p] = 1 if block.extra_blocks else 0
+        mask = keep_lut[arr]
+        if not mask.any():
+            continue
+        rel = np.argwhere(mask)
+        world = rel + np.array((box.min_x, box.min_y, box.min_z))
+        verts_parts.append(np.stack([
+            world[:, 0] - min_coords[0],
+            -(world[:, 2] - min_coords[2]),
+            world[:, 1] - min_coords[1],
+        ], axis=1).astype(np.int64))
+        picked = arr[mask]
+        ids_parts.append(id_lut[picked])
+        wl_parts.append(wl_lut[picked])
+    if not verts_parts:
+        return np.zeros((0, 3), dtype=np.int64), [], np.zeros(0, dtype=np.int32)
+    return (np.concatenate(verts_parts),
+            list(np.concatenate(ids_parts)),
+            np.concatenate(wl_parts))
+
+
+def collect_blocks(level, dimension, min_coords, max_coords, platform, version):
+    """读取选区方块，优先 chunk 级批量路径，失败时回退逐格路径。"""
+    try:
+        return _collect_blocks_fast(level, dimension, min_coords, max_coords,
+                                    platform, version)
+    except Exception as e:
+        print(f"[MBM] chunk 级批量读取不可用，回退逐格路径: {e}")
+    # 逐格回退路径
+    translate = _make_translator(level, platform, version)
+    vertices = []
+    ids = []
+    waterlogged = []
+    for x in range(min_coords[0], max_coords[0] + 1):
+        for y in range(min_coords[1], max_coords[1] + 1):
+            for z in range(min_coords[2], max_coords[2] + 1):
+                try:
+                    block = level.get_block(x, y, z, dimension)
+                except Exception:
+                    continue
+                if isinstance(block, amulet.api.block.Block):
+                    id_str, base_name = translate(block)
+                    if id_str is not None and base_name not in exclude:
+                        vertices.append((x - min_coords[0], -(z - min_coords[2]), y - min_coords[1]))
+                        ids.append(id_str)
+                        waterlogged.append(1 if block.extra_blocks else 0)
+    return vertices, ids, waterlogged
+
+
+def _make_translator(level, platform, version):
+    """构建带缓存的通用方块 -> 版本化字符串翻译器。
+
+    schematic 百万格中唯一方块种类通常只有几十种，按 str(block) 缓存后
+    from_universal 的调用次数从"每格一次"降为"每个唯一方块一次"。
+    翻译失败缓存为 (None, None)，与逐格 try/except 跳过的原行为一致。
+    返回 translate(block) -> (完整字符串, 去括号基础名)。
+    """
+    version_block = level.translation_manager.get_version(platform, version).block
+    cache = {}
+
+    def translate(block):
+        key = str(block)
+        result = cache.get(key, _MISSING)
+        if result is _MISSING:
+            try:
+                id_str = str(version_block.from_universal(block)[0]).replace('"', '')
+                result = (id_str, remove_brackets(id_str))
+            except Exception:
+                result = (None, None)
+            cache[key] = result
+        return result
+
+    return translate
 
 
 def schem(level, chunks, cached, filename="schem", position=(0, 0, 0)):
@@ -64,64 +171,17 @@ def schem(level, chunks, cached, filename="schem", position=(0, 0, 0)):
     min_coords = chunks[0]
     max_coords = chunks[1]
 
-    # 创建一个新的网格对象
-    mesh = bpy.data.meshes.new(name=filename)
-    mesh.attributes.new(name='blockid', type="INT", domain="POINT")
-    mesh.attributes.new(name='waterlogged', type="INT", domain="POINT")
-    mesh.attributes.new(name='biome', type="FLOAT_COLOR", domain="POINT")
-    obj = bpy.data.objects.new(filename, mesh)
-
-    # 将对象添加到场景中
-    scene = bpy.context.scene
-    scene.collection.objects.link(obj)
     # 创建一个新的集合
     collection_name="Blocks"
     create_or_clear_collection(collection_name)
     collection =bpy.data.collections.get(collection_name)
-    nodetree_target = "Schem"
-
     #导入几何节点
-    try:
-        nodes_modifier.node_group = bpy.data.node_groups[collection_name]
-    except (KeyError, AttributeError):
-        file_path =bpy.context.scene.geometrynodes_blend_path
-        inner_path = 'NodeTree'
-        object_name = nodetree_target
-        bpy.ops.wm.append(
-            filepath=os.path.join(file_path, inner_path, object_name),
-            directory=os.path.join(file_path, inner_path),
-            filename=object_name
-        )
+    ensure_geometry_nodes_group(collection_name)
 
     if not cached:
-        # 创建顶点和顶点索引
-        vertices = []
-        ids = []  # 存储顶点id
-        waterlogged=[]
-        # 遍历范围内所有的坐标
-        for x in range(min_coords[0], max_coords[0] + 1):
-            for y in range(min_coords[1], max_coords[1] + 1):
-                for z in range(min_coords[2], max_coords[2] + 1):
-                    try:
-                        id = level.get_block(x, y, z, "main")
-                    except Exception as e:
-                        continue
-                    if isinstance(id,amulet.api.block.Block):
-                        
-                        if id.extra_blocks !=():
-                            w=1
-                        else:
-                            w=0
-                        id =str(level.translation_manager.get_version(platform, version).block.from_universal(id)[0]).replace('"', '')
-                        try:
-                            result = remove_brackets(id)
-                            if result not in exclude:
-                                vertices.append((x-min_coords[0],-(z-min_coords[2]),y-min_coords[1]))
-                                # 将字符串id转换为相应的数字id
-                                ids.append(id)
-                                waterlogged.append(w)
-                        except Exception as e:
-                            print(f"[MBM] 方块处理出错 ({x},{y},{z}): {e}")
+        # chunk 级批量读取（翻译器内部也带缓存），失败自动回退逐格路径
+        vertices, ids, waterlogged = collect_blocks(
+            level, "main", min_coords, max_coords, platform, version)
         id_map=register_blocks(list(set(ids)))
     else:
         IDCachePath = os.path.join(SCHEMCACHE_DIR, "id_map.pkl")
@@ -129,43 +189,9 @@ def schem(level, chunks, cached, filename="schem", position=(0, 0, 0)):
             vertices,ids,id_map = pickle.load(f)
         id_map=register_blocks(id_map)
 
-    # 将顶点和顶点索引添加到网格中
-    mesh.from_pydata(vertices, [], [])
-    #给予顶点id
-    for i, item in enumerate(obj.data.attributes['blockid'].data):
-        id =re.escape(ids[i])
-        item.value=id_map[id]
-        #print(item.value)
-    #给予水属性
-    for i, item in enumerate(obj.data.attributes['waterlogged'].data):
-        item.value = waterlogged[i]
-    #群系上色
-    for i, item in enumerate(obj.data.attributes['biome'].data):
-        item.color[:]=(0.149,0.660,0.10,0.00)
-    # 设置顶点索引
-    mesh.update()
-    
-    # 检查是否有节点修改器，如果没有则添加一个
-    has_nodes_modifier = False
-    for modifier in obj.modifiers:
-        if modifier.type == 'NODES':
-            has_nodes_modifier = True
-            break
-    if not has_nodes_modifier:
-        obj.modifiers.new(name="Schem",type="NODES")
-    nodes_modifier=obj.modifiers[0]
-    
-    # 复制 Schem 节点组并重命名为 CollectionName
-    try:
-        original_node_group = bpy.data.node_groups['Schem']
-        new_node_group = original_node_group.copy()
-        new_node_group.name = collection_name
-    except KeyError:
-        print("error")
-    #设置几何节点        
-    nodes_modifier.node_group = bpy.data.node_groups[collection_name]
-    bpy.data.node_groups[collection_name].nodes["集合信息"].inputs[0].default_value = collection
-    nodes_modifier.show_viewport = True    
+    # 创建点云对象并批量写入顶点与属性（foreach_set 替代逐顶点循环）
+    obj = build_point_cloud_mesh(filename, vertices, ids, id_map, waterlogged)
+    attach_schem_modifier(obj, collection_name)
     return obj
     
 
@@ -180,6 +206,8 @@ def schem_chunk(level, chunks, x_list, chunk_index=0, filename="schem", position
     # 创建顶点和顶点索引
     vertices = []
     ids = []  # 存储顶点id
+    # 翻译器内部带缓存：唯一方块只翻译一次（get_version_block 逐格翻译开销大）
+    translate = _make_translator(level, platform, version)
 
     # 遍历指定区块的 X 范围
     x_range = x_list[chunk_index]
@@ -188,17 +216,16 @@ def schem_chunk(level, chunks, x_list, chunk_index=0, filename="schem", position
             for z in range(min_coords[2], max_coords[2] + 1):
                 try:
                     # 获取坐标处的方块
-                    blc =level.get_version_block(x, y, z, "main",(platform, version))
-                    id =blc[0]
-                    if isinstance(id,amulet.api.block.Block):
-                        id = str(id).replace('"', '')
-                        result = remove_brackets(id)
-                        if result not in exclude:
-                            vertices.append((x-min_coords[0],-(z-min_coords[2]),y-min_coords[1]))
-                            # 将字符串id转换为相应的数字id
-                            ids.append(id)
+                    block = level.get_block(x, y, z, "main")
                 except Exception as e:
                     print(f"[MBM] 区块处理出错 ({x},{y},{z}): {e}")
+                    continue
+                if isinstance(block, amulet.api.block.Block):
+                    id_str, base_name = translate(block)
+                    if id_str is not None and base_name not in exclude:
+                        vertices.append((x-min_coords[0],-(z-min_coords[2]),y-min_coords[1]))
+                        # 将字符串id转换为相应的数字id
+                        ids.append(id_str)
 
     id_map=register_blocks(list(set(ids)))
 
@@ -225,6 +252,85 @@ def merge_chunks(chunk_count, filename="schem"):
     id_map_path = os.path.join(SCHEMCACHE_DIR, "id_map.pkl")
     with open(id_map_path, 'wb') as f:
         pickle.dump((all_vertices, all_ids, merged_id_map), f)
+
+
+def _collect_liquid_fast(level, min_coord, max_coord, platform, version):
+    """chunk 级批量读取流体信息。返回 (流体格字典, is_liquid_at(x,y,z) 回调)。
+
+    用稠密布尔数组表达"该格是否流体"，越界/缺失 chunk 一律按非流体处理，
+    与逐格路径 get_block 失败时视为暴露的原语义一致。
+    """
+    translate = _make_translator(level, platform, version)
+    shape = (max_coord[0] - min_coord[0] + 1,
+             max_coord[1] - min_coord[1] + 1,
+             max_coord[2] - min_coord[2] + 1)
+    is_liquid = np.zeros(shape, dtype=bool)
+    id_str_of = np.empty(shape, dtype=object)
+    for chunk, slices, box in level.get_chunk_slice_box(
+            "main", _selection_for_chunks((min_coord, max_coord))):
+        arr = np.asarray(chunk.blocks[slices])
+        palette_blocks = chunk.block_palette.blocks
+        n = len(palette_blocks)
+        liquid_lut = np.zeros(n, dtype=bool)
+        str_lut = np.empty(n, dtype=object)
+        for p, block in enumerate(palette_blocks):
+            # 含附加方块（如含水）时与原实现一致：取第一个附加方块判定流体
+            src = block.extra_blocks[0] if block.extra_blocks else block
+            id_str, base_name = translate(src)
+            if id_str is not None and base_name in liquid:
+                liquid_lut[p] = True
+                str_lut[p] = id_str
+        liq = liquid_lut[arr]
+        if not liq.any():
+            continue
+        world = np.argwhere(liq) + np.array((box.min_x, box.min_y, box.min_z))
+        li = world[:, 0] - min_coord[0]
+        lj = world[:, 1] - min_coord[1]
+        lk = world[:, 2] - min_coord[2]
+        is_liquid[li, lj, lk] = True
+        id_str_of[li, lj, lk] = str_lut[arr[liq]]
+
+    liquid_cells = {}
+    for i, j, k in np.argwhere(is_liquid):
+        liquid_cells[(int(i) + min_coord[0], int(j) + min_coord[1],
+                      int(k) + min_coord[2])] = id_str_of[i, j, k]
+
+    def is_liquid_at(x, y, z):
+        i, j, k = x - min_coord[0], y - min_coord[1], z - min_coord[2]
+        if 0 <= i < shape[0] and 0 <= j < shape[1] and 0 <= k < shape[2]:
+            return bool(is_liquid[i, j, k])
+        return False
+
+    return liquid_cells, is_liquid_at
+
+
+def _collect_liquid_cells(level, min_coord, max_coord, platform, version):
+    """逐格读取流体信息（批量路径失败时的回退），返回值结构与 _collect_liquid_fast 相同。"""
+    translate = _make_translator(level, platform, version)
+    base_name_at = {}
+    liquid_cells = {}
+    for x in range(min_coord[0], max_coord[0] + 1):
+        for y in range(min_coord[1], max_coord[1] + 1):
+            for z in range(min_coord[2], max_coord[2] + 1):
+                try:
+                    block = level.get_block(x, y, z, "main")
+                except Exception:
+                    continue
+                if not isinstance(block, amulet.api.block.Block):
+                    continue
+                # 含附加方块（如含水）时与原实现一致：取第一个附加方块判定流体
+                src = block.extra_blocks[0] if block.extra_blocks else block
+                id_str, base_name = translate(src)
+                if id_str is None:
+                    continue
+                base_name_at[(x, y, z)] = base_name
+                if base_name in liquid:
+                    liquid_cells[(x, y, z)] = id_str
+
+    def is_liquid_at(x, y, z):
+        return base_name_at.get((x, y, z)) in liquid
+
+    return liquid_cells, is_liquid_at
 
 
 #流体
@@ -269,188 +375,144 @@ def schem_liquid(level, chunks, filename="liquid", position=(0, 0, 0)):
     min_coord = chunks[0]  # 最小坐标
     max_coord = chunks[1]  # 最大坐标
 
-    # 遍历 x、y、z 三个轴上的所有坐标
-    for x in range(min_coord[0], max_coord[0] + 1):
-        for y in range(min_coord[1], max_coord[1] + 1):
-            for z in range(min_coord[2], max_coord[2] + 1):
-                # 获取坐标处的方块
-                try:
-                    id = level.get_block(x, y, z, "main")
-                except Exception:
-                    continue
-                if isinstance(id,amulet.api.block.Block):
-                    if id.extra_blocks !=():
-                        try:
-                            id=str(level.translation_manager.get_version(platform, version).block.from_universal(id.extra_blocks[0])[0]).replace('"', '')
-                        except Exception:
-                            continue
-                    else:
-                        try:
-                            id =str(level.translation_manager.get_version(platform, version).block.from_universal(id)[0]).replace('"', '')
-                        except Exception:
-                            continue
-                    
-                    result = remove_brackets(id) 
-                    if result in liquid:
-                        # 使用列表推导式生成相邻坐标
-                        adjacent_coords = [(x + offset[0], y + offset[1], z + offset[2]) for offset in offsets]
-                        # 使用 any 函数判断是否有流体方块
-                        #最少面
-                        #has_air = [adj_coord not in d or d[adj_coord].split('[')[0] =="minecraft:air" for adj_coord in adjacent_coords]
+    # 第一遍：收集流体格与邻居判定回调（优先 chunk 级批量路径，失败回退逐格）
+    try:
+        liquid_cells, is_liquid_at = _collect_liquid_fast(level, min_coord, max_coord, platform, version)
+    except Exception as e:
+        print(f"[MBM] 流体批量读取不可用，回退逐格路径: {e}")
+        liquid_cells, is_liquid_at = _collect_liquid_cells(level, min_coord, max_coord, platform, version)
 
-                        #体积水
-                        #has_air = [adj_coord not in d or (d[adj_coord].split('[')[0] not in liquid and d[adj_coord].split('[')[0] not in sea_plants) for adj_coord in adjacent_coords]
-                        # 判断是否有空气方块
-                        has_air = [True] * 6  # 默认为 True
-                        for i, adj_coord in enumerate(adjacent_coords):
-                            try:
-                                name = level.get_block(adj_coord[0], adj_coord[1], adj_coord[2], "main")
-                            except Exception:
-                                continue
-                            if isinstance(name,amulet.api.block.Block):
-                                if name.extra_blocks !=():
-                                    name=str(level.translation_manager.get_version(platform, version).block.from_universal(name.extra_blocks[0])[0]).replace('"', '')
-                                else:
-                                    try:
-                                        name =str(level.translation_manager.get_version(platform, version).block.from_universal(name)[0]).replace('"', '')
-                                    except Exception:
-                                        continue
-                                # 找到等号的位置
-                                equal_index = name.find('[')
+    # 第二遍：仅遍历流体格，邻居查询走回调（批量路径为稠密数组命中，回退路径为字典命中）
+    for (x, y, z), id in liquid_cells.items():
+        # 判断是否有空气方块（越界/缺失/非流体邻居视为暴露）
+        has_air = [not is_liquid_at(x + offset[0], y + offset[1], z + offset[2])
+                   for offset in offsets]
 
-                                # 分离出 water 和 level=0
-                                if equal_index != -1:
-                                    name = name[:equal_index]
-                                if name in liquid:
-                                    has_air[i] = False
+        # 将 has_air 中的值按照 东西北南上下 的顺序排列
+        has_air = [has_air[2], has_air[3], has_air[0], has_air[1], has_air[5], has_air[4]]
+        key=[x-min_coord[0],z-min_coord[2],y-min_coord[1]]
+        # 计算哪些面需要生成
+        faces_to_generate = [i for i, has_air_face in enumerate(has_air) if has_air_face]
 
-            
-
-                        # 将 has_air 中的值按照 东西北南上下 的顺序排列
-                        has_air = [has_air[2], has_air[3], has_air[0], has_air[1], has_air[5], has_air[4]]
-                        key=[x-min_coord[0],z-min_coord[2],y-min_coord[1]]
-                        # 计算哪些面需要生成
-                        faces_to_generate = [i for i, has_air_face in enumerate(has_air) if has_air_face]
-
-                        if faces_to_generate:
-                            water_level = water_levels.get(id, 0)
-                            z_offset = water_level / 16 
-                            key = (key[0], -key[1]-1, key[2])
-                            for face_index in faces_to_generate:
-                                if face_index == 5:
-                                    coords = np.array([
-                                        (key[0], key[1], key[2]), #0
-                                        (key[0]+1, key[1], key[2]), #1
-                                        (key[0]+1, key[1]+1, key[2]), #2
-                                        (key[0], key[1]+1, key[2]) #3
-                                    ])
-                                    for coord in coords:
-                                        coord = tuple(coord)
-                                        if coord not in vertices_dict:
-                                            vertices_dict[coord] = len(vertices_dict)
-                                            vertices.append(coord)
-                                    faces.append([
-                                        vertices_dict[tuple(coords[0])],
-                                        vertices_dict[tuple(coords[1])],
-                                        vertices_dict[tuple(coords[2])],
-                                        vertices_dict[tuple(coords[3])]
-                                    ])
-                                    direction.append('down')
-                                elif face_index == 0:
-                                    coords = np.array([
-                                        (key[0], key[1]+1, key[2]), #3
-                                        (key[0], key[1]+1, key[2]+z_offset),#7
-                                        (key[0], key[1], key[2]+z_offset), #4
-                                        (key[0], key[1], key[2]) #0
-                                    ])
-                                    for coord in coords:
-                                        coord = tuple(coord)
-                                        if coord not in vertices_dict:
-                                            vertices_dict[coord] = len(vertices_dict)
-                                            vertices.append(coord)
-                                    faces.append([
-                                        vertices_dict[tuple(coords[0])],
-                                        vertices_dict[tuple(coords[1])],
-                                        vertices_dict[tuple(coords[2])],
-                                        vertices_dict[tuple(coords[3])]
-                                    ])
-                                    direction.append('east') #x-
-                                elif face_index == 3:
-                                    coords = np.array([
-                                        (key[0], key[1], key[2]), #0
-                                        (key[0], key[1], key[2]+z_offset), #4
-                                        (key[0]+1, key[1], key[2]+z_offset), #5
-                                        (key[0]+1, key[1], key[2]) #1
-                                    ])
-                                    for coord in coords:
-                                        coord = tuple(coord)
-                                        if coord not in vertices_dict:
-                                            vertices_dict[coord] = len(vertices_dict)
-                                            vertices.append(coord)
-                                    faces.append([
-                                        vertices_dict[tuple(coords[0])],
-                                        vertices_dict[tuple(coords[1])],
-                                        vertices_dict[tuple(coords[2])],
-                                        vertices_dict[tuple(coords[3])]
-                                    ])
-                                    direction.append('north')
-                                elif face_index == 1:
-                                    coords = np.array([
-                                        (key[0]+1, key[1], key[2]), #1
-                                        (key[0]+1, key[1], key[2]+z_offset), #5
-                                        (key[0]+1, key[1]+1, key[2]+z_offset), #6
-                                        (key[0]+1, key[1]+1, key[2]) #2
-                                    ])
-                                    for coord in coords:
-                                        coord = tuple(coord)
-                                        if coord not in vertices_dict:
-                                            vertices_dict[coord] = len(vertices_dict)
-                                            vertices.append(coord)
-                                    faces.append([
-                                        vertices_dict[tuple(coords[0])],
-                                        vertices_dict[tuple(coords[1])],
-                                        vertices_dict[tuple(coords[2])],
-                                        vertices_dict[tuple(coords[3])]
-                                    ])
-                                    direction.append('west')
-                                elif face_index == 2:
-                                    coords = np.array([
-                                        (key[0]+1, key[1]+1, key[2]), #2
-                                        (key[0], key[1]+1, key[2]), #3
-                                        (key[0], key[1]+1, key[2]+z_offset),#7
-                                        (key[0]+1, key[1]+1, key[2]+z_offset)#5
-                                    ])
-                                    for coord in coords:
-                                        coord = tuple(coord)
-                                        if coord not in vertices_dict:
-                                            vertices_dict[coord] = len(vertices_dict)
-                                            vertices.append(coord)
-                                    faces.append([
-                                        vertices_dict[tuple(coords[0])],
-                                        vertices_dict[tuple(coords[1])],
-                                        vertices_dict[tuple(coords[2])],
-                                        vertices_dict[tuple(coords[3])]
-                                    ])
-                                    direction.append('south')
-                                elif face_index == 4:
-                                    coords = np.array([
-                                        (key[0]+1, key[1]+1, key[2]+z_offset),#6
-                                        (key[0]+1, key[1], key[2]+z_offset), #5
-                                        (key[0], key[1], key[2]+z_offset), #4
-                                        (key[0], key[1]+1, key[2]+z_offset)#7
-                                    ])
-                                    for coord in coords:
-                                        coord = tuple(coord)
-                                        if coord not in vertices_dict:
-                                            vertices_dict[coord] = len(vertices_dict)
-                                            vertices.append(coord)
-                                    faces.append([
-                                        vertices_dict[tuple(coords[0])],
-                                        vertices_dict[tuple(coords[1])],
-                                        vertices_dict[tuple(coords[2])],
-                                        vertices_dict[tuple(coords[3])]
-                                    ])
-                                    direction.append('up')
+        if faces_to_generate:
+            water_level = water_levels.get(id, 0)
+            z_offset = water_level / 16 
+            key = (key[0], -key[1]-1, key[2])
+            for face_index in faces_to_generate:
+                if face_index == 5:
+                    coords = np.array([
+                        (key[0], key[1], key[2]), #0
+                        (key[0]+1, key[1], key[2]), #1
+                        (key[0]+1, key[1]+1, key[2]), #2
+                        (key[0], key[1]+1, key[2]) #3
+                    ])
+                    for coord in coords:
+                        coord = tuple(coord)
+                        if coord not in vertices_dict:
+                            vertices_dict[coord] = len(vertices_dict)
+                            vertices.append(coord)
+                    faces.append([
+                        vertices_dict[tuple(coords[0])],
+                        vertices_dict[tuple(coords[1])],
+                        vertices_dict[tuple(coords[2])],
+                        vertices_dict[tuple(coords[3])]
+                    ])
+                    direction.append('down')
+                elif face_index == 0:
+                    coords = np.array([
+                        (key[0], key[1]+1, key[2]), #3
+                        (key[0], key[1]+1, key[2]+z_offset),#7
+                        (key[0], key[1], key[2]+z_offset), #4
+                        (key[0], key[1], key[2]) #0
+                    ])
+                    for coord in coords:
+                        coord = tuple(coord)
+                        if coord not in vertices_dict:
+                            vertices_dict[coord] = len(vertices_dict)
+                            vertices.append(coord)
+                    faces.append([
+                        vertices_dict[tuple(coords[0])],
+                        vertices_dict[tuple(coords[1])],
+                        vertices_dict[tuple(coords[2])],
+                        vertices_dict[tuple(coords[3])]
+                    ])
+                    direction.append('east') #x-
+                elif face_index == 3:
+                    coords = np.array([
+                        (key[0], key[1], key[2]), #0
+                        (key[0], key[1], key[2]+z_offset), #4
+                        (key[0]+1, key[1], key[2]+z_offset), #5
+                        (key[0]+1, key[1], key[2]) #1
+                    ])
+                    for coord in coords:
+                        coord = tuple(coord)
+                        if coord not in vertices_dict:
+                            vertices_dict[coord] = len(vertices_dict)
+                            vertices.append(coord)
+                    faces.append([
+                        vertices_dict[tuple(coords[0])],
+                        vertices_dict[tuple(coords[1])],
+                        vertices_dict[tuple(coords[2])],
+                        vertices_dict[tuple(coords[3])]
+                    ])
+                    direction.append('north')
+                elif face_index == 1:
+                    coords = np.array([
+                        (key[0]+1, key[1], key[2]), #1
+                        (key[0]+1, key[1], key[2]+z_offset), #5
+                        (key[0]+1, key[1]+1, key[2]+z_offset), #6
+                        (key[0]+1, key[1]+1, key[2]) #2
+                    ])
+                    for coord in coords:
+                        coord = tuple(coord)
+                        if coord not in vertices_dict:
+                            vertices_dict[coord] = len(vertices_dict)
+                            vertices.append(coord)
+                    faces.append([
+                        vertices_dict[tuple(coords[0])],
+                        vertices_dict[tuple(coords[1])],
+                        vertices_dict[tuple(coords[2])],
+                        vertices_dict[tuple(coords[3])]
+                    ])
+                    direction.append('west')
+                elif face_index == 2:
+                    coords = np.array([
+                        (key[0]+1, key[1]+1, key[2]), #2
+                        (key[0], key[1]+1, key[2]), #3
+                        (key[0], key[1]+1, key[2]+z_offset),#7
+                        (key[0]+1, key[1]+1, key[2]+z_offset)#5
+                    ])
+                    for coord in coords:
+                        coord = tuple(coord)
+                        if coord not in vertices_dict:
+                            vertices_dict[coord] = len(vertices_dict)
+                            vertices.append(coord)
+                    faces.append([
+                        vertices_dict[tuple(coords[0])],
+                        vertices_dict[tuple(coords[1])],
+                        vertices_dict[tuple(coords[2])],
+                        vertices_dict[tuple(coords[3])]
+                    ])
+                    direction.append('south')
+                elif face_index == 4:
+                    coords = np.array([
+                        (key[0]+1, key[1]+1, key[2]+z_offset),#6
+                        (key[0]+1, key[1], key[2]+z_offset), #5
+                        (key[0], key[1], key[2]+z_offset), #4
+                        (key[0], key[1]+1, key[2]+z_offset)#7
+                    ])
+                    for coord in coords:
+                        coord = tuple(coord)
+                        if coord not in vertices_dict:
+                            vertices_dict[coord] = len(vertices_dict)
+                            vertices.append(coord)
+                    faces.append([
+                        vertices_dict[tuple(coords[0])],
+                        vertices_dict[tuple(coords[1])],
+                        vertices_dict[tuple(coords[2])],
+                        vertices_dict[tuple(coords[3])]
+                    ])
+                    direction.append('up')
 
     collection = bpy.context.collection
     mesh_name = filename
@@ -503,132 +565,102 @@ def schem_liquid(level, chunks, filename="liquid", position=(0, 0, 0)):
     bm.to_mesh(mesh)
     bm.free()
 
-def separate_vertices_by_blockid(obj):
+def _read_point_cloud_arrays(obj):
+    """批量读出点云的本地坐标、世界坐标整数键与顶点属性（foreach_get）。"""
     mesh = obj.data
-    vertices = mesh.vertices
+    count = len(mesh.vertices)
+    local = np.empty(count * 3, dtype=np.float64)
+    mesh.vertices.foreach_get("co", local)
+    local = local.reshape(-1, 3)
 
-    # 字典用于存储不同 blockid 的顶点
+    world = local
+    mw = np.array(obj.matrix_world)
+    if not np.allclose(mw, np.eye(4)):
+        hom = np.concatenate([local, np.ones((count, 1))], axis=1)
+        world = (hom @ mw.T)[:, :3]
+
+    blockids = np.zeros(count, dtype=np.int32)
+    waterlogged = np.zeros(count, dtype=np.int32)
+    biome = np.full(count * 4, 0.0, dtype=np.float32)
+    biome[0::4], biome[1::4], biome[2::4], biome[3::4] = BIOME_COLOR
+    blockid_attr = mesh.attributes.get('blockid')
+    waterlogged_attr = mesh.attributes.get('waterlogged')
+    biome_attr = mesh.attributes.get('biome')
+    if blockid_attr is not None:
+        blockid_attr.data.foreach_get("value", blockids)
+    if waterlogged_attr is not None:
+        waterlogged_attr.data.foreach_get("value", waterlogged)
+    if biome_attr is not None:
+        biome_attr.data.foreach_get("color", biome)
+    return local, world, blockids, waterlogged, biome
+
+
+def _write_separated_mesh(obj, name, local, selection, blockids, waterlogged, biome):
+    """按选中的顶点索引子集创建拆分对象（复制修改器、按原始本地坐标重建）。"""
+    new_mesh = bpy.data.meshes.new(name=f"{name}_Mesh")
+    new_obj = bpy.data.objects.new(name=f"{name}_Object", object_data=new_mesh)
+    bpy.context.collection.objects.link(new_obj)
+
+    # 复制修改器
+    for modifier in obj.modifiers:
+        new_modifier = new_obj.modifiers.new(modifier.name, modifier.type)
+        if modifier.type == 'NODES':
+            new_modifier.node_group = modifier.node_group
+
+    n = len(selection)
+    new_mesh.vertices.add(n)
+    new_mesh.vertices.foreach_set(
+        "co", local[selection].astype(np.float32).reshape(-1))
+
+    blockid_attr = new_mesh.attributes.new(name='blockid', type="INT", domain="POINT")
+    waterlogged_attr = new_mesh.attributes.new(name='waterlogged', type="INT", domain="POINT")
+    biome_attr = new_mesh.attributes.new(name='biome', type="FLOAT_COLOR", domain="POINT")
+    blockid_attr.data.foreach_set("value", blockids[selection])
+    waterlogged_attr.data.foreach_set("value", waterlogged[selection])
+    biome_attr.data.foreach_set("color", biome.reshape(-1, 4)[selection].reshape(-1))
+    new_mesh.update()
+
+    # 将新物体移动到原始物体的位置
+    new_obj.matrix_world = obj.matrix_world
+
+
+def separate_vertices_by_blockid(obj):
+    local, world, blockids, waterlogged, biome = _read_point_cloud_arrays(obj)
+
+    # 按 blockid 分组顶点索引；相同整数坐标的顶点只保留第一个（与原实现一致）
+    keys = world.astype(np.int64)
     vertex_dict = {}
-    waterlogged_dict = {}
-
-    for vertex in vertices:
-        coord = tuple([int(coord) for coord in (obj.matrix_world @ vertex.co)])  # 将顶点坐标转换为元组，以便用作字典键
-        
-        # 如果顶点坐标已经存在于字典中，则跳过
-        if coord in vertex_dict:
+    seen = set()
+    for idx in range(len(keys)):
+        coord = (keys[idx, 0], keys[idx, 1], keys[idx, 2])
+        if coord in seen:
             continue
+        seen.add(coord)
+        vertex_dict.setdefault(int(blockids[idx]), []).append(idx)
 
-        # 获取顶点属性值（blockid）
-        try:
-            blockid = obj.data.attributes['blockid'].data[vertex.index].value
-            waterlogged = obj.data.attributes['waterlogged'].data[vertex.index].value
-        except (KeyError, AttributeError):
-            blockid = 0
-            waterlogged = False
-        # 根据 blockid 将顶点添加到相应的列表中
-        if blockid not in vertex_dict:
-            vertex_dict[blockid] = [vertex]
-            waterlogged_dict[blockid] = [waterlogged]
-        else:
-            vertex_dict[blockid].append(vertex)
-            waterlogged_dict[blockid].append(waterlogged)
-
-    # 创建不同 blockid 的网格体
-    for blockid, vertices in vertex_dict.items():
-        # 创建新的网格对象和物体
-        new_mesh = bpy.data.meshes.new(name=f"BlockID_{blockid}_Mesh")
-        new_obj = bpy.data.objects.new(name=f"BlockID_{blockid}_Object", object_data=new_mesh)
-        bpy.context.collection.objects.link(new_obj)
-
-        # 复制修改器
-        for modifier in obj.modifiers:
-            new_modifier = new_obj.modifiers.new(modifier.name, modifier.type)
-            
-            # 复制节点修改器的设置
-            if modifier.type == 'NODES':
-                new_modifier.node_group = modifier.node_group
-
-        # 设置新网格的顶点和面
-        new_mesh.from_pydata([v.co for v in vertices], [], [])
-        new_mesh.update()
-
-        # 添加 blockid 属性到新网格体的顶点
-        blockid_attr = new_mesh.attributes.new(name='blockid', type="INT", domain="POINT")
-        waterlogged_attr = new_mesh.attributes.new(name='waterlogged', type="INT", domain="POINT")
-        biome_attr=new_mesh.attributes.new(name='biome', type="FLOAT_COLOR", domain="POINT")
-        for v_index, v in enumerate(vertices):
-            try:
-                blockid_attr.data[v_index].value = blockid
-                waterlogged_attr.data[v_index].value = waterlogged_dict[blockid][v_index]
-                biome_attr.data[v_index].color  = (0.149,0.660,0.10,0.00)
-            except IndexError:
-                print(f"顶点索引 {v_index} 超出范围。")
-
-        # 将新物体移动到原始物体的位置
-        new_obj.matrix_world = obj.matrix_world
+    for blockid, selection in vertex_dict.items():
+        _write_separated_mesh(obj, f"BlockID_{blockid}", local,
+                              np.asarray(selection, dtype=np.int64), blockids, waterlogged, biome)
     # 删除原始对象
     bpy.data.objects.remove(obj, do_unlink=True)
 
 def separate_vertices_by_chunk(obj, chunk_size=16):
-    mesh = obj.data
-    vertices = mesh.vertices
+    local, world, blockids, waterlogged, biome = _read_point_cloud_arrays(obj)
 
-    # 字典用于存储不同 chunk 块的顶点
+    # 计算顶点所在 chunk 的坐标，同时沿着正 y 轴平移 1 个单位
+    chunk_keys = np.stack([
+        np.floor(world[:, 0] / chunk_size) * chunk_size,
+        np.floor((world[:, 1] - 1) / chunk_size) * chunk_size,
+        np.floor(world[:, 2] / chunk_size) * chunk_size,
+    ], axis=1).astype(np.int64)
+
     vertex_dict = {}
+    for idx, key in enumerate(chunk_keys):
+        vertex_dict.setdefault((key[0], key[1], key[2]), []).append(idx)
 
-    for vertex in vertices:
-        # 将顶点的世界坐标乘以物体的世界矩阵，以获得全局坐标
-        global_coord = obj.matrix_world @ vertex.co
-
-        # 计算顶点所在 chunk 的坐标，同时沿着正 y 轴平移 1 个单位
-        coord = (
-            math.floor(global_coord.x / chunk_size) * chunk_size,
-            math.floor((global_coord.y - 1) / chunk_size) * chunk_size,
-            math.floor(global_coord.z / chunk_size) * chunk_size
-        )
-
-        # 根据坐标将顶点添加到相应的列表中
-        if coord not in vertex_dict:
-            vertex_dict[coord] = [vertex]
-        else:
-            vertex_dict[coord].append(vertex)
-
-    # 创建不同 chunk 的网格体
-    for coord, vertices in vertex_dict.items():
-        # 创建新的网格对象和物体
-        new_mesh = bpy.data.meshes.new(name=f"Chunk_{coord}_Mesh")
-        new_obj = bpy.data.objects.new(name=f"Chunk_{coord}_Object", object_data=new_mesh)
-        bpy.context.collection.objects.link(new_obj)
-
-        # 复制修改器
-        for modifier in obj.modifiers:
-            new_modifier = new_obj.modifiers.new(modifier.name, modifier.type)
-            
-            # 复制节点修改器的设置
-            if modifier.type == 'NODES':
-                new_modifier.node_group = modifier.node_group
-
-        # 设置新网格的顶点和面
-        new_mesh.from_pydata([v.co for v in vertices], [], [])
-        new_mesh.update()
-
-        # 添加 blockid 和 biome 属性到新网格体的顶点，并复制原始网格体的属性值
-        blockid_attr = new_mesh.attributes.new(name='blockid', type="INT", domain="POINT")
-        waterlogged_attr = new_mesh.attributes.new(name='waterlogged', type="INT", domain="POINT")
-        biome_attr = new_mesh.attributes.new(name='biome', type="FLOAT_COLOR", domain="POINT")
-        for v_index, v in enumerate(vertices):
-            try:
-                # 复制原始网格体的 blockid 和 biome 属性值
-                blockid = obj.data.attributes['blockid'].data[v.index].value
-                waterlogged = obj.data.attributes['waterlogged'].data[v.index].value
-                biome = obj.data.attributes['biome'].data[v.index].color
-                blockid_attr.data[v_index].value = blockid
-                waterlogged_attr.data[v_index].value = waterlogged
-                biome_attr.data[v_index].color = biome
-            except IndexError:
-                print(f"顶点索引 {v_index} 超出范围。")
-        # 将新物体移动到原始物体的位置
-        new_obj.matrix_world = obj.matrix_world
+    for coord, selection in vertex_dict.items():
+        _write_separated_mesh(obj, f"Chunk_{coord}", local,
+                              np.asarray(selection, dtype=np.int64), blockids, waterlogged, biome)
 
     # 删除原始对象
     bpy.data.objects.remove(obj, do_unlink=True)
@@ -640,32 +672,11 @@ def litematic_to_mesh(block_dict, bounds, filename="litematic"):
 
     min_coords, max_coords = bounds
 
-    # 创建网格（与 schem.py 相同的模式）
-    mesh = bpy.data.meshes.new(name=filename)
-    mesh.attributes.new(name='blockid', type="INT", domain="POINT")
-    mesh.attributes.new(name='waterlogged', type="INT", domain="POINT")
-    mesh.attributes.new(name='biome', type="FLOAT_COLOR", domain="POINT")
-    obj = bpy.data.objects.new(filename, mesh)
-    bpy.context.scene.collection.objects.link(obj)
-
-    # 创建 Blocks 集合
+    # 创建 Blocks 集合并确保几何节点组就绪
     collection_name = "Blocks"
     create_or_clear_collection(collection_name)
     collection = bpy.data.collections.get(collection_name)
-    nodetree_target = "Schem"
-
-    # 导入几何节点
-    try:
-        nodes_modifier.node_group = bpy.data.node_groups[collection_name]
-    except (KeyError, AttributeError):
-        file_path = bpy.context.scene.geometrynodes_blend_path
-        inner_path = 'NodeTree'
-        object_name = nodetree_target
-        bpy.ops.wm.append(
-            filepath=os.path.join(file_path, inner_path, object_name),
-            directory=os.path.join(file_path, inner_path),
-            filename=object_name
-        )
+    ensure_geometry_nodes_group(collection_name)
 
     # 构建顶点和 ID 列表
     vertices = []
@@ -681,43 +692,8 @@ def litematic_to_mesh(block_dict, bounds, filename="litematic"):
     # 注册方块
     id_map = register_blocks(list(set(ids)))
 
-    # 构建网格
-    mesh.from_pydata(vertices, [], [])
-
-    for i, item in enumerate(obj.data.attributes['blockid'].data):
-        id_str = re.escape(ids[i])
-        item.value = id_map[id_str]
-
-    for i, item in enumerate(obj.data.attributes['waterlogged'].data):
-        item.value = waterlogged[i]
-
-    for i, item in enumerate(obj.data.attributes['biome'].data):
-        item.color[:] = (0.149, 0.660, 0.10, 0.00)
-
-    mesh.update()
-
-    # 添加几何节点修改器
-    has_nodes_modifier = False
-    for modifier in obj.modifiers:
-        if modifier.type == 'NODES':
-            has_nodes_modifier = True
-            break
-
-    if not has_nodes_modifier:
-        obj.modifiers.new(name="Schem", type="NODES")
-
-    nodes_modifier = obj.modifiers[0]
-
-    # 复制节点组
-    try:
-        original_node_group = bpy.data.node_groups['Schem']
-        new_node_group = original_node_group.copy()
-        new_node_group.name = collection_name
-    except KeyError:
-        print("Error copying node group")
-
-    nodes_modifier.node_group = bpy.data.node_groups[collection_name]
-    bpy.data.node_groups[collection_name].nodes["集合信息"].inputs[0].default_value = collection
-    nodes_modifier.show_viewport = True
+    # 创建点云对象并批量写入顶点与属性（foreach_set 替代逐顶点循环）
+    obj = build_point_cloud_mesh(filename, vertices, ids, id_map, waterlogged)
+    attach_schem_modifier(obj, collection_name)
 
     return obj

@@ -5,6 +5,7 @@ import numpy as np
 import re
 from .tip import ShowMessageBox
 from ..register import register_blocks, create_or_clear_collection
+from ..pointcloud import ensure_geometry_nodes_group, attach_schem_modifier, build_point_cloud_mesh
 from ..block_map_store import get_block_map_text, load_block_map_safe
 from collections import defaultdict
 from .. import dependency_manager
@@ -143,75 +144,22 @@ def export_schem(dict,filename="file"):
 
 
 def create_mesh_from_dictionary(d,name):
-    # 创建一个新的网格对象
-    mesh = bpy.data.meshes.new(name=name)
-    mesh.attributes.new(name='blockid', type="INT", domain="POINT")
-    mesh.attributes.new(name='biome', type="FLOAT_COLOR", domain="POINT")
-    obj = bpy.data.objects.new(name, mesh)
-
-    # 将对象添加到场景中
-    scene = bpy.context.scene
-    scene.collection.objects.link(obj)
     # 创建一个新的集合
     collection_name="Blocks"
     create_or_clear_collection(collection_name)
     collection =bpy.data.collections.get(collection_name)
-    nodetree_target = "Schem"
+    ensure_geometry_nodes_group(collection_name)
 
-    #导入几何节点
-    try:
-        nodes_modifier.node_group = bpy.data.node_groups[collection_name]
-    except:
-        file_path =bpy.context.scene.geometrynodes_blend_path
-        inner_path = 'NodeTree'
-        object_name = nodetree_target
-        bpy.ops.wm.append(
-            filepath=os.path.join(file_path, inner_path, object_name),
-            directory=os.path.join(file_path, inner_path),
-            filename=object_name
-        )
-    # 创建顶点和顶点索引
-    vertices = []
-    ids = []  # 存储顶点id
     id_map=register_blocks(list(set(d.values())))
+    vertices = []
+    ids = []  # 存储顶点id（未转义的方块字符串，build_point_cloud_mesh 内部统一转义）
     for coord, id_str in d.items():
         vertices.append((coord[0],-coord[1],coord[2]))
-        id_str =re.escape(id_str)
-        # 将字符串id转换为相应的数字id
-        ids.append(id_map[id_str])
-    # 将顶点和顶点索引添加到网格中
-    mesh.from_pydata(vertices, [], [])
-    for i, item in enumerate(obj.data.attributes['blockid'].data):
-        item.value=ids[i]
-    #群系上色
-    for i, item in enumerate(obj.data.attributes['biome'].data):
-        item.color[:]=(0.149,0.660,0.10,0.00)
-    
+        ids.append(id_str)
 
-    # 设置顶点索引
-    mesh.update()
-    
-    # 检查是否有节点修改器，如果没有则添加一个
-    has_nodes_modifier = False
-    for modifier in obj.modifiers:
-        if modifier.type == 'NODES':
-            has_nodes_modifier = True
-            break
-    if not has_nodes_modifier:
-        obj.modifiers.new(name="Schem",type="NODES")
-    nodes_modifier=obj.modifiers[0]
-    
-    # 复制 Schem 节点组并重命名为 CollectionName
-    try:
-        original_node_group = bpy.data.node_groups['Schem']
-        new_node_group = original_node_group.copy()
-        new_node_group.name = collection_name
-    except KeyError:
-        print("error")
-    #设置几何节点        
-    nodes_modifier.node_group = bpy.data.node_groups[collection_name]
-    bpy.data.node_groups[collection_name].nodes["集合信息"].inputs[0].default_value = collection
-    nodes_modifier.show_viewport = True
+    # 创建点云对象并批量写入顶点与属性（foreach_set 替代逐顶点循环；原路径无 waterlogged 属性）
+    obj = build_point_cloud_mesh(name, vertices, ids, id_map, with_waterlogged=False)
+    attach_schem_modifier(obj, collection_name)
 
 def create_points_from_dictionary(d,name):
     # 创建一个新的网格对象

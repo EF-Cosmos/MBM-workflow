@@ -44,7 +44,7 @@ class MBM_PT_import_panel(bpy.types.Panel):
         row = layout.row()
         row.label(text="导入", icon="IMPORT")
         if not amulet_ok:
-            layout.label(text="导入/导出需 amulet，当前 Blender 版本暂不可用", icon='ERROR')
+            layout.label(text=".schem/.nbt/世界导入导出需 amulet，当前 Blender 版本暂不可用", icon='ERROR')
         # 创建一个框
         box = layout.box()
         box.enabled = amulet_ok
@@ -52,10 +52,9 @@ class MBM_PT_import_panel(bpy.types.Panel):
         box.operator("mbm.schem_import_panel", text="导入.schem文件")
         layout.split()
 
-        # Litematic 导入
+        # Litematic 导入（仅依赖纯 Python 的 litemapy，amulet 缺失时仍可用）
         if litemapy is not None:
             box = layout.box()
-            box.enabled = amulet_ok
             box.label(text="导入.litematic文件")
             box.operator("mbm.import_litematic", text="导入.litematic文件")
         else:
